@@ -1,0 +1,8 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="60" cy="60" r="60" fill="#F0F8FF"/>
+  <path d="M40 70C40 53.4315 53.4315 40 70 40C86.5685 40 100 53.4315 100 70" stroke="#003087" stroke-width="8"/>
+  <path d="M20 60H100" stroke="#00CED1" stroke-width="4"/>
+  <circle cx="70" cy="70" r="8" fill="#FFD700"/>
+  <text x="60" y="30" text-anchor="middle" font-family="Montserrat" font-size="16" font-weight="bold" fill="#003087">CSP</text>
+  <text x="60" y="100" text-anchor="middle" font-family="Montserrat" font-size="12" fill="#003087">Cryptex Vision</text>
+</svg>
