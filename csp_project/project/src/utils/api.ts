@@ -19,10 +19,46 @@ const getRetryDelay = (attempt: number): number => {
   return Math.min(INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1), MAX_RETRY_DELAY);
 };
 
-const SUPPORTED_COINS = {
-  'BTC': { coingecko: 'bitcoin', cryptoPanic: 'bitcoin', coinMetrics: 'btc', xQuery: 'BTC OR Bitcoin' },
-  'ETH': { coingecko: 'ethereum', cryptoPanic: 'ethereum', coinMetrics: 'eth', xQuery: 'ETH OR Ethereum' },
-  'SOL': { coingecko: 'solana', cryptoPanic: 'solana', coinMetrics: 'solana', xQuery: 'SOL OR Solana' }
+// Dynamically fetched supported coins
+let SUPPORTED_COINS: { [key: string]: { coingecko: string, cryptoPanic: string, coinMetrics: string, xQuery: string } } = {};
+
+// Fetch top 100 coins by market cap from CoinGecko
+export const fetchSupportedCoins = async (): Promise<void> => {
+  try {
+    console.log('Fetching top 100 coins from CoinGecko...');
+    const response = await axios.get('https://api.coingecko.com/api/v3/coins/markets', {
+      params: {
+        vs_currency: 'usd',
+        order: 'market_cap_desc',
+        per_page: 100,
+        page: 1,
+        sparkline: false
+      },
+      timeout: 20000
+    });
+    console.log('CoinGecko top 100 coins response:', response.data);
+
+    if (!response.data || response.data.length === 0) throw new Error('No coins fetched from CoinGecko');
+
+    SUPPORTED_COINS = response.data.reduce((acc: any, coin: any) => {
+      const symbol = coin.symbol.toUpperCase();
+      acc[symbol] = {
+        coingecko: coin.id,
+        cryptoPanic: symbol, // CryptoPanic uses symbol
+        coinMetrics: symbol.toLowerCase(), // CoinMetrics uses lowercase symbol (will verify support later)
+        xQuery: `${symbol} OR ${coin.name}`
+      };
+      return acc;
+    }, {});
+  } catch (error: any) {
+    console.error('Error fetching supported coins:', error.message);
+    // Fallback to default coins if fetch fails
+    SUPPORTED_COINS = {
+      'BTC': { coingecko: 'bitcoin', cryptoPanic: 'bitcoin', coinMetrics: 'btc', xQuery: 'BTC OR Bitcoin' },
+      'ETH': { coingecko: 'ethereum', cryptoPanic: 'ethereum', coinMetrics: 'eth', xQuery: 'ETH OR Ethereum' },
+      'SOL': { coingecko: 'solana', cryptoPanic: 'solana', coinMetrics: 'solana', xQuery: 'SOL OR Solana' }
+    };
+  }
 };
 
 // Fetch social sentiment from X and analyze with Hugging Face
@@ -203,10 +239,13 @@ export const fetchEvents = async (): Promise<Event[]> => {
   console.log('CryptoPanic API Token (first 5 chars):', apiToken?.substring(0, 5) || 'Not found');
   if (!apiToken) throw new Error('CryptoPanic API token not configured');
 
+  // Collect symbols of supported coins
+  const currencies = Object.keys(SUPPORTED_COINS).join(',');
+
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       console.log(`Fetching events (Attempt ${attempt}/${MAX_RETRIES})`);
-      const response = await axios.get(`https://cryptopanic.com/api/v1/posts/?auth_token=${apiToken}&public=true&filter=hot¤cies=BTC,ETH`, {
+      const response = await axios.get(`https://cryptopanic.com/api/v1/posts/?auth_token=${apiToken}&public=true&filter=hot&currencies=${currencies}`, {
         timeout: 20000
       });
       console.log(`CryptoPanic raw response:`, response.data);
@@ -231,3 +270,6 @@ export const fetchEvents = async (): Promise<Event[]> => {
   }
   throw new Error('Failed to fetch event data');
 };
+
+// Export supported coins for frontend use
+export const getSupportedCoins = () => Object.keys(SUPPORTED_COINS);
