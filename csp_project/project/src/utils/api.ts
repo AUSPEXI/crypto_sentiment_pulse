@@ -43,7 +43,7 @@ const STATIC_COINS = [
   { symbol: 'PEPE', id: 'pepe', name: 'Pepe' }
 ];
 
-// Static SUPPORTED_COINS
+// Static SUPPORTED_COINS with consistent symbol mapping
 let SUPPORTED_COINS: { [key: string]: { coingecko: string, cryptoPanic: string, coinMetrics: string } } = {};
 STATIC_COINS.forEach(coin => {
   SUPPORTED_COINS[coin.symbol] = {
@@ -85,7 +85,17 @@ const STATIC_WALLET_DATA: { [key: string]: OnChainData } = {
 export const fetchSentimentData = async (coin: string): Promise<SentimentData> => {
   console.log('api.ts: fetchSentimentData called for coin:', coin, 'at', new Date().toISOString());
   const coinConfig = SUPPORTED_COINS[coin];
-  if (!coinConfig) throw new Error(`Unsupported coin: ${coin}`);
+  if (!coinConfig) {
+    console.error(`api.ts: Unsupported coin: ${coin}`);
+    return {
+      coin,
+      positive: 0,
+      negative: 0,
+      neutral: 100,
+      score: 50,
+      timestamp: new Date().toISOString()
+    };
+  }
 
   let marketSentiment = 50;
   let aiSentiment = 50;
@@ -143,7 +153,10 @@ export const fetchSentimentData = async (coin: string): Promise<SentimentData> =
 export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
   console.log('api.ts: fetchOnChainData called for coin:', coin, 'at', new Date().toISOString());
   const coinConfig = SUPPORTED_COINS[coin];
-  if (!coinConfig) throw new Error(`Unsupported coin: ${coin}`);
+  if (!coinConfig) {
+    console.warn(`api.ts: Unsupported coin ${coin}, returning default data`);
+    return { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: new Date().toISOString() };
+  }
 
   if (STATIC_WALLET_DATA[coin]) {
     console.log(`api.ts: Using static wallet data for ${coin}`);
