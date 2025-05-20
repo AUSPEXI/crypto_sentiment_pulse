@@ -1,1 +1,12 @@
+# Ignore environment files
+.env
 
+# Ignore build output (if using Vite)
+dist/
+
+# Ignore node_modules
+node_modules/
+
+# Ignore IDE-specific files (optional)
+.vscode/
+.idea/
