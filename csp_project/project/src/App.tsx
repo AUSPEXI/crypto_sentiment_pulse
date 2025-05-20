@@ -16,13 +16,16 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    console.log('App.tsx: useEffect triggered at', new Date().toISOString());
     const loadCoins = async () => {
       try {
         setIsLoading(true);
-        // Use static coins from api.ts
         const supportedCoins = getSupportedCoins();
-        console.log('Loaded Supported Coins:', supportedCoins);
-        setCoinDetails([
+        console.log('App.tsx: Supported Coins from api.ts:', supportedCoins);
+        if (supportedCoins.length === 0) {
+          console.error('App.tsx: No coins available from getSupportedCoins - check api.ts');
+        }
+        const coinDetails = [
           { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin' },
           { id: 'ethereum', symbol: 'ETH', name: 'Ethereum' },
           { id: 'tether', symbol: 'USDT', name: 'Tether' },
@@ -43,15 +46,19 @@ function App() {
           { id: 'litecoin', symbol: 'LTC', name: 'Litecoin' },
           { id: 'polygon', symbol: 'MATIC', name: 'Polygon' },
           { id: 'pepe', symbol: 'PEPE', name: 'Pepe' }
-        ]);
+        ];
+        setCoinDetails(coinDetails);
+        console.log('App.tsx: setCoinDetails called with', coinDetails.length, 'coins');
         const validSelected = selectedCoins.filter(coin => supportedCoins.includes(coin));
         if (validSelected.length === 0 && supportedCoins.length > 0) {
           setSelectedCoins([supportedCoins[0], supportedCoins[1]]);
+          console.log('App.tsx: Set default selected coins:', [supportedCoins[0], supportedCoins[1]]);
         } else {
           setSelectedCoins(validSelected);
+          console.log('App.tsx: Set validated selected coins:', validSelected);
         }
       } catch (error) {
-        console.error('Error loading coins in App:', error);
+        console.error('App.tsx: Error loading coins:', error);
         setCoinDetails([
           { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin' },
           { id: 'ethereum', symbol: 'ETH', name: 'Ethereum' },
@@ -60,6 +67,7 @@ function App() {
         setSelectedCoins(['BTC', 'ETH']);
       } finally {
         setIsLoading(false);
+        console.log('App.tsx: Loading complete, isLoading set to false');
       }
     };
     loadCoins();
@@ -72,12 +80,10 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-neutral via-neutral to-primary/5">
       <Header />
-      
       <main className="container mx-auto px-4 py-8">
         <section id="about">
           <About />
         </section>
-        
         <div className="mt-8 mb-6">
           <h2 className="text-lg font-semibold text-blue-800 mb-4">Select Coins to Track</h2>
           <CoinSelect 
@@ -86,34 +92,27 @@ function App() {
             availableCoins={getSupportedCoins()}
           />
         </div>
-        
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <div id="sentiment" className="xl:col-span-2">
             <SentimentSnapshot selectedCoins={selectedCoins} />
           </div>
-          
           <div className="xl:col-span-1">
             <OnChainInsights selectedCoins={selectedCoins} />
           </div>
-          
           <div id="events" className="xl:col-span-1">
             <EventAlerts />
           </div>
-          
           <div id="portfolio" className="xl:col-span-2">
             <PortfolioTracker />
           </div>
-          
           <div id="tip-jar" className="xl:col-span-1">
             <TipJar />
           </div>
-          
           <div id="datasets" className="xl:col-span-2">
             <DatasetInfo />
           </div>
         </div>
       </main>
-      
       <UserGuide />
     </div>
   );
