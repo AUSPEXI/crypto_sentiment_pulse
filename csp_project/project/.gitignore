@@ -10,3 +10,4 @@ node_modules/
 # Ignore IDE-specific files (optional)
 .vscode/
 .idea/
+
