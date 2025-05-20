@@ -9,7 +9,7 @@ import TipJar from './components/TipJar';
 import DatasetInfo from './components/DatasetInfo';
 import UserGuide from './components/UserGuide';
 import CoinSelect, { setCoinDetails } from './components/CoinSelect';
-import { getSupportedCoins } from './api';
+import { getSupportedCoins } from './utils/api';
 
 function App() {
   const [selectedCoins, setSelectedCoins] = useState<string[]>(['BTC', 'ETH']);
