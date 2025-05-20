@@ -9,21 +9,41 @@ import TipJar from './components/TipJar';
 import DatasetInfo from './components/DatasetInfo';
 import UserGuide from './components/UserGuide';
 import CoinSelect, { setCoinDetails } from './components/CoinSelect';
-import { fetchSupportedCoins, getSupportedCoins } from './api';
+import { getSupportedCoins } from './api';
 
 function App() {
   const [selectedCoins, setSelectedCoins] = useState<string[]>(['BTC', 'ETH']);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const loadCoins = async () => {
       try {
-        await fetchSupportedCoins();
+        setIsLoading(true);
+        // Use static coins from api.ts
         const supportedCoins = getSupportedCoins();
-        console.log('Supported Coins:', supportedCoins);
-        const response = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false');
-        const coinData = await response.json();
-        if (!coinData || coinData.length === 0) throw new Error('No coin data from CoinGecko');
-        setCoinDetails(coinData);
+        console.log('Loaded Supported Coins:', supportedCoins);
+        setCoinDetails([
+          { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin' },
+          { id: 'ethereum', symbol: 'ETH', name: 'Ethereum' },
+          { id: 'tether', symbol: 'USDT', name: 'Tether' },
+          { id: 'binance-coin', symbol: 'BNB', name: 'BNB' },
+          { id: 'solana', symbol: 'SOL', name: 'Solana' },
+          { id: 'usd-coin', symbol: 'USDC', name: 'USDC' },
+          { id: 'xrp', symbol: 'XRP', name: 'XRP' },
+          { id: 'dogecoin', symbol: 'DOGE', name: 'Dogecoin' },
+          { id: 'toncoin', symbol: 'TON', name: 'TON' },
+          { id: 'cardano', symbol: 'ADA', name: 'Cardano' },
+          { id: 'tron', symbol: 'TRX', name: 'TRON' },
+          { id: 'avalanche', symbol: 'AVAX', name: 'Avalanche' },
+          { id: 'shiba-inu', symbol: 'SHIB', name: 'Shiba Inu' },
+          { id: 'chainlink', symbol: 'LINK', name: 'Chainlink' },
+          { id: 'bitcoin-cash', symbol: 'BCH', name: 'Bitcoin Cash' },
+          { id: 'polkadot', symbol: 'DOT', name: 'Polkadot' },
+          { id: 'near-protocol', symbol: 'NEAR', name: 'NEAR Protocol' },
+          { id: 'litecoin', symbol: 'LTC', name: 'Litecoin' },
+          { id: 'polygon', symbol: 'MATIC', name: 'Polygon' },
+          { id: 'pepe', symbol: 'PEPE', name: 'Pepe' }
+        ]);
         const validSelected = selectedCoins.filter(coin => supportedCoins.includes(coin));
         if (validSelected.length === 0 && supportedCoins.length > 0) {
           setSelectedCoins([supportedCoins[0], supportedCoins[1]]);
@@ -32,17 +52,22 @@ function App() {
         }
       } catch (error) {
         console.error('Error loading coins in App:', error);
-        // Use fallback coins
         setCoinDetails([
           { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin' },
           { id: 'ethereum', symbol: 'ETH', name: 'Ethereum' },
           { id: 'solana', symbol: 'SOL', name: 'Solana' }
         ]);
         setSelectedCoins(['BTC', 'ETH']);
+      } finally {
+        setIsLoading(false);
       }
     };
     loadCoins();
   }, []);
+
+  if (isLoading) {
+    return <div>Loading coins...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-neutral via-neutral to-primary/5">
