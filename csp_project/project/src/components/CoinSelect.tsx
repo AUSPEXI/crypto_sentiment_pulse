@@ -1,89 +1,80 @@
-import React, { useState, useEffect } from 'react';
-import Header from './components/Header';
-import About from './components/About';
-import SentimentSnapshot from './components/SentimentSnapshot';
-import OnChainInsights from './components/OnChainInsights';
-import EventAlerts from './components/EventAlerts';
-import PortfolioTracker from './components/PortfolioTracker';
-import TipJar from './components/TipJar';
-import DatasetInfo from './components/DatasetInfo';
-import UserGuide from './components/UserGuide';
-import CoinSelect, { setCoinDetails } from './components/CoinSelect';
-import { fetchSupportedCoins, getSupportedCoins } from './api';
+import React from 'react';
+import { Listbox } from '@headlessui/react';
+import { ChevronDown, Check } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
-function App() {
-  const [selectedCoins, setSelectedCoins] = useState<string[]>(['BTC', 'ETH']);
-
-  useEffect(() => {
-    const loadCoins = async () => {
-      // Fetch coins from api.ts
-      await fetchSupportedCoins();
-      const supportedCoins = getSupportedCoins();
-
-      // Fetch raw coin data to get names and IDs
-      const response = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false');
-      const coinData = await response.json();
-      setCoinDetails(coinData); // Populate COIN_DETAILS in CoinSelect
-
-      // Validate selected coins
-      const validSelected = selectedCoins.filter(coin => supportedCoins.includes(coin));
-      if (validSelected.length === 0 && supportedCoins.length > 0) {
-        setSelectedCoins([supportedCoins[0], supportedCoins[1]]);
-      } else {
-        setSelectedCoins(validSelected);
-      }
-    };
-    loadCoins();
-  }, []);
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-neutral via-neutral to-primary/5">
-      <Header />
-      
-      <main className="container mx-auto px-4 py-8">
-        <section id="about">
-          <About />
-        </section>
-        
-        <div className="mt-8 mb-6">
-          <h2 className="text-lg font-semibold text-blue-800 mb-4">Select Coins to Track</h2>
-          <CoinSelect 
-            selectedCoins={selectedCoins} 
-            onChange={setSelectedCoins} 
-            availableCoins={getSupportedCoins()}
-          />
-        </div>
-        
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          <div id="sentiment" className="xl:col-span-2">
-            <SentimentSnapshot selectedCoins={selectedCoins} />
-          </div>
-          
-          <div className="xl:col-span-1">
-            <OnChainInsights selectedCoins={selectedCoins} />
-          </div>
-          
-          <div id="events" className="xl:col-span-1">
-            <EventAlerts />
-          </div>
-          
-          <div id="portfolio" className="xl:col-span-2">
-            <PortfolioTracker />
-          </div>
-          
-          <div id="tip-jar" className="xl:col-span-1">
-            <TipJar />
-          </div>
-          
-          <div id="datasets" className="xl:col-span-2">
-            <DatasetInfo />
-          </div>
-        </div>
-      </main>
-      
-      <UserGuide />
-    </div>
-  );
+interface Coin {
+  id: string;
+  symbol: string;
+  name: string;
 }
 
-export default App;
+interface CoinSelectProps {
+  selectedCoins: string[];
+  onChange: (coins: string[]) => void;
+  availableCoins: string[];
+}
+
+const CoinSelect: React.FC<CoinSelectProps> = ({ selectedCoins, onChange, availableCoins }) => {
+  // Map availableCoins to a format compatible with the original design
+  const coinDetails: Coin[] = availableCoins.map(symbol => ({
+    id: symbol.toLowerCase(),
+    symbol,
+    name: symbol // Placeholder; replace with actual names if available
+  }));
+
+  return (
+    <div className="relative w-full">
+      <Listbox value={selectedCoins} onChange={onChange} multiple>
+        <Listbox.Button className="relative w-full bg-white rounded-lg py-2 pl-3 pr-10 text-left shadow-md">
+          <span className="block truncate">
+            {selectedCoins.length === 0 
+              ? 'Select coins...' 
+              : `${selectedCoins.length} coin${selectedCoins.length > 1 ? 's' : ''} selected`}
+          </span>
+          <span className="absolute inset-y-0 right-0 flex items-center pr-2">
+            <ChevronDown className="h-5 w-5 text-gray-400" aria-hidden="true" />
+          </span>
+        </Listbox.Button>
+
+        <AnimatePresence>
+          <Listbox.Options 
+            as={motion.ul}
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+          >
+            {coinDetails.map((coin) => (
+              <Listbox.Option
+                key={coin.id}
+                value={coin.symbol}
+                className={({ active, selected }) =>
+                  `relative cursor-pointer select-none py-2 pl-10 pr-4 ${
+                    active ? 'bg-blue-100' : ''
+                  } ${selected ? 'bg-blue-50' : ''}`
+                }
+              >
+                {({ selected }) => (
+                  <>
+                    <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
+                      {coin.name} ({coin.symbol})
+                    </span>
+                    {selected && (
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-blue-600">
+                        <Check className="h-4 w-4" />
+                      </span>
+                    )}
+                  </>
+                )}
+              </Listbox.Option>
+            ))}
+          </Listbox.Options>
+        </AnimatePresence>
+      </Listbox>
+    </div>
+  );
+};
+
+export default CoinSelect;
+export { setCoinDetails }; // Ensure this export exists for App.tsx
