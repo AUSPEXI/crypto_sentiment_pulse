@@ -29,7 +29,7 @@ let SUPPORTED_COINS: { [key: string]: { coingecko: string, cryptoPanic: string, 
 // Fetch top 100 coins by market cap from CoinGecko
 export const fetchSupportedCoins = async (): Promise<void> => {
   try {
-    console.log('Fetching top 100 coins from CoinGecko...');
+    console.log('Attempting to fetch top 100 coins from CoinGecko...');
     const response = await axios.get('https://api.coingecko.com/api/v3/coins/markets', {
       params: {
         vs_currency: 'usd',
@@ -40,7 +40,7 @@ export const fetchSupportedCoins = async (): Promise<void> => {
       },
       timeout: 20000
     });
-    console.log('CoinGecko top 100 coins response:', response.data);
+    console.log('CoinGecko response:', response.data);
 
     if (!response.data || response.data.length === 0) throw new Error('No coins fetched from CoinGecko');
 
@@ -55,11 +55,11 @@ export const fetchSupportedCoins = async (): Promise<void> => {
       return acc;
     }, {});
   } catch (error: any) {
-    console.error('Error fetching supported coins:', error.message);
-    // Fallback already set at initialization
+    console.error('Failed to fetch coins from CoinGecko:', error.message);
+    // Keep fallback coins
   }
 };
 
-// Rest of api.ts remains the same (omitted for brevity)
-// Ensure getSupportedCoins is exported
 export const getSupportedCoins = () => Object.keys(SUPPORTED_COINS);
+
+// Rest of api.ts (fetchSentimentData, fetchOnChainData, fetchEvents) remains the same
