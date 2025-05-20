@@ -89,4 +89,4 @@ const CoinSelect: React.FC<CoinSelectProps> = ({ selectedCoins, onChange, availa
 };
 
 export default CoinSelect;
-export { setCoinDetails };
+export { setCoinDetails }; // This line must be present
