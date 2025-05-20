@@ -43,7 +43,31 @@ export interface DatasetEntry {
   eventImpactScore: number;
 }
 
-export const AVAILABLE_COINS = [
+export interface Coin {
+  id: string;
+  symbol: string;
+  name: string;
+}
+
+export const AVAILABLE_COINS: Coin[] = [
   { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin' },
-  { id: 'ethereum', symbol: 'ETH', name: 'Ethereum' }
-] as const;
+  { id: 'ethereum', symbol: 'ETH', name: 'Ethereum' },
+  { id: 'tether', symbol: 'USDT', name: 'Tether' },
+  { id: 'binance-coin', symbol: 'BNB', name: 'BNB' },
+  { id: 'solana', symbol: 'SOL', name: 'Solana' },
+  { id: 'usd-coin', symbol: 'USDC', name: 'USDC' },
+  { id: 'xrp', symbol: 'XRP', name: 'XRP' },
+  { id: 'dogecoin', symbol: 'DOGE', name: 'Dogecoin' },
+  { id: 'toncoin', symbol: 'TON', name: 'TON' },
+  { id: 'cardano', symbol: 'ADA', name: 'Cardano' },
+  { id: 'tron', symbol: 'TRX', name: 'TRON' },
+  { id: 'avalanche', symbol: 'AVAX', name: 'Avalanche' },
+  { id: 'shiba-inu', symbol: 'SHIB', name: 'Shiba Inu' },
+  { id: 'chainlink', symbol: 'LINK', name: 'Chainlink' },
+  { id: 'bitcoin-cash', symbol: 'BCH', name: 'Bitcoin Cash' },
+  { id: 'polkadot', symbol: 'DOT', name: 'Polkadot' },
+  { id: 'near-protocol', symbol: 'NEAR', name: 'NEAR Protocol' },
+  { id: 'litecoin', symbol: 'LTC', name: 'Litecoin' },
+  { id: 'polygon', symbol: 'MATIC', name: 'Polygon' },
+  { id: 'pepe', symbol: 'PEPE', name: 'Pepe' }
+];
