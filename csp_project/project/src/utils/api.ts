@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { SentimentData, OnChainData, Event } from '../types';
+import { SentimentData, OnChainData, Event } from '../../types';
 
 // Retry configuration
 const MAX_RETRIES = 3;
