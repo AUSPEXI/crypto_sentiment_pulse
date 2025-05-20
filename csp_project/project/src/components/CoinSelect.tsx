@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Listbox } from '@headlessui/react';
 import { ChevronDown, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -15,13 +15,25 @@ interface CoinSelectProps {
   availableCoins: string[];
 }
 
+// Manage coin details state internally
 const CoinSelect: React.FC<CoinSelectProps> = ({ selectedCoins, onChange, availableCoins }) => {
-  // Map availableCoins to a format compatible with the original design
-  const coinDetails: Coin[] = availableCoins.map(symbol => ({
-    id: symbol.toLowerCase(),
-    symbol,
-    name: symbol // Placeholder; replace with actual names if available
-  }));
+  const [coinDetails, setCoinDetailsInternal] = useState<Coin[]>([]);
+
+  // Function to set coin details, exported for App.tsx
+  const setCoinDetails = (details: any[]) => {
+    setCoinDetailsInternal(details.map(item => ({
+      id: item.id || item.symbol.toLowerCase(),
+      symbol: item.symbol,
+      name: item.name || item.symbol // Fallback to symbol if name is missing
+    })));
+  };
+
+  // Sync with availableCoins
+  useEffect(() => {
+    if (availableCoins.length > 0 && coinDetails.length === 0) {
+      setCoinDetails(availableCoins.map(symbol => ({ id: symbol.toLowerCase(), symbol, name: symbol })));
+    }
+  }, [availableCoins, coinDetails.length]);
 
   return (
     <div className="relative w-full">
@@ -77,4 +89,4 @@ const CoinSelect: React.FC<CoinSelectProps> = ({ selectedCoins, onChange, availa
 };
 
 export default CoinSelect;
-export { setCoinDetails }; // Ensure this export exists for App.tsx
+export { setCoinDetails };
