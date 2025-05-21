@@ -18,14 +18,12 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
       setError(null);
 
       try {
-        // Fetch data for all coins in parallel
         const fetchPromises = selectedCoins.map(async (coin) => {
           try {
             const data = await fetchOnChainData(coin);
             return { coin, data };
           } catch (err) {
             console.warn(`Failed to fetch on-chain data for ${coin}:`, err);
-            // Fallback data for unsupported coins
             return {
               coin,
               data: {
@@ -60,7 +58,6 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
     return () => clearInterval(intervalId);
   }, [selectedCoins]);
 
-  // Format large numbers with K/M/B suffix
   const formatNumber = (num: number): string => {
     if (num >= 1e9) return `${(num / 1e9).toFixed(1)}B`;
     if (num >= 1e6) return `${(num / 1e6).toFixed(1)}M`;
@@ -68,7 +65,6 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
     return num.toString();
   };
 
-  // Custom tooltip component
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const value = payload[0].value;
@@ -90,7 +86,6 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
     return null;
   };
 
-  // Custom bar component for growth chart
   const GrowthBar = (props: any) => {
     const { fill, x, y, width, height, value } = props;
     const color = value >= 0 ? '#22c55e' : '#ef4444';
@@ -100,7 +95,6 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
     return <rect x={x} y={yPos} width={width} height={barHeight} fill={color} />;
   };
 
-  // Prepare data for the charts
   const activeWalletsData = Object.entries(onChainData).map(([coin, data]) => ({
     coin,
     activeWallets: data.activeWallets,
@@ -112,7 +106,6 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
     transactions: data.largeTransactions
   }));
 
-  // Calculate chart dimensions based on number of coins
   const getChartHeight = (numCoins: number): number => {
     const baseHeight = 250;
     const heightPerCoin = 30;
@@ -137,7 +130,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
         <div className="space-y-6">
           <div>
             <h3 className="text-md font-medium text-gray-700 mb-2">Active Wallet Growth</h3>
-            <div style={{ height: `${chartHeight}px` }}>
+            <div style={{ height: `${chartHeight}px`, width: '100%' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={activeWalletsData}
@@ -148,7 +141,12 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                   {selectedCoins.length > 5 ? (
                     <>
                       <XAxis type="number" />
-                      <YAxis dataKey="coin" type="category" width={60} />
+                      <YAxis
+                        dataKey="coin"
+                        type="category"
+                        width={80} // Increased width to accommodate more coins
+                        tick={{ fontSize: 12 }} // Smaller font to fit more labels
+                      />
                     </>
                   ) : (
                     <>
@@ -171,7 +169,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
 
           <div>
             <h3 className="text-md font-medium text-gray-700 mb-2">Large Transactions</h3>
-            <div style={{ height: `${chartHeight}px` }}>
+            <div style={{ height: `${chartHeight}px`, width: '100%' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={largeTransactionsData}
@@ -182,7 +180,12 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                   {selectedCoins.length > 5 ? (
                     <>
                       <XAxis type="number" />
-                      <YAxis dataKey="coin" type="category" width={60} />
+                      <YAxis
+                        dataKey="coin"
+                        type="category"
+                        width={80} // Increased width to accommodate more coins
+                        tick={{ fontSize: 12 }} // Smaller font to fit more labels
+                      />
                     </>
                   ) : (
                     <>
