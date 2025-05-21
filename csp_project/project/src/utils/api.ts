@@ -23,7 +23,12 @@ const getRetryDelay = (attempt: number): number => {
 const SUPPORTED_COINS = {
   'BTC': { santiment: 'bitcoin', cryptoPanic: 'BTC', coinMetrics: 'btc' },
   'ETH': { santiment: 'ethereum', cryptoPanic: 'ETH', coinMetrics: 'eth' },
-  'SOL': { santiment: 'solana', cryptoPanic: 'SOL', coinMetrics: 'solana' }
+  'SOL': { santiment: 'solana', cryptoPanic: 'SOL', coinMetrics: 'sol' },
+  'ADA': { santiment: 'cardano', cryptoPanic: 'ADA', coinMetrics: 'ada' },
+  'DOT': { santiment: 'polkadot', cryptoPanic: 'DOT', coinMetrics: 'dot' },
+  'AVAX': { santiment: 'avalanche', cryptoPanic: 'AVAX', coinMetrics: 'avax' },
+  'LINK': { santiment: 'chainlink', cryptoPanic: 'LINK', coinMetrics: 'link' },
+  'MATIC': { santiment: 'polygon', cryptoPanic: 'MATIC', coinMetrics: 'matic' }
 };
 
 export const fetchSentimentData = async (coin: string): Promise<SentimentData> => {
@@ -206,7 +211,7 @@ export const fetchEvents = async (): Promise<Event[]> => {
           auth_token: apiToken,
           public: 'true',
           filter: 'hot',
-          currencies: 'BTC,ETH,SOL'
+          currencies: Object.keys(SUPPORTED_COINS).join(',')
         },
         headers: {
           'Accept': 'application/json'
