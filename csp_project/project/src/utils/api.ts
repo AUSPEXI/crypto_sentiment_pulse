@@ -88,7 +88,7 @@ const fetchAIFallbackOnChainData = async (coin: string): Promise<OnChainData> =>
           },
           {
             role: 'user',
-            content: `Estimate the active wallets, active wallet growth (%), and large transactions for ${coin} as of today, May 21, 2025. Base your estimate on typical trends for this coin. Return the response in the format: "Active Wallets: X, Growth: Y, Large Transactions: Z".`
+            content: `Estimate the active wallets, active wallet growth (%), and large transactions for ${coin} as of today, May 21, 2025. Base your estimate on typical trends for this coin. Return the response in the format: "Active Wallets: X, Growth: Y%, Large Transactions: Z".`
           }
         ],
         max_tokens: 100
@@ -102,28 +102,22 @@ const fetchAIFallbackOnChainData = async (coin: string): Promise<OnChainData> =>
       }
     );
 
-    const aiResponse = response.data.choices[0].message.content;
+    const aiResponse = response.data.choices[0].message.content.trim();
     console.log(`[AI Fallback] OpenAI response for ${coin}:`, aiResponse);
 
-    // Parse the AI response
-    const activeWalletsMatch = aiResponse.match(/Active Wallets: (\d+)/);
-    const growthMatch = aiResponse.match(/Growth: ([-]?\d+\.\d+)/);
-    const transactionsMatch = aiResponse.match(/Large Transactions: (\d+)/);
-
-    const activeWallets = activeWalletsMatch ? parseInt(activeWalletsMatch[1]) : 0;
-    const activeWalletsGrowth = growthMatch ? parseFloat(growthMatch[1]) : 0;
-    const largeTransactions = transactionsMatch ? parseInt(transactionsMatch[1]) : 0;
-
-    if (activeWallets === 0 && activeWalletsGrowth === 0 && largeTransactions === 0) {
-      console.warn(`[AI Fallback] Failed to parse meaningful data for ${coin}, using static fallback`);
+    // Robust parsing with fallback
+    const matches = aiResponse.match(/Active Wallets: (\d+), Growth: (-?\d+\.?\d*)%, Large Transactions: (\d+)/);
+    if (!matches || matches.length < 4) {
+      console.warn(`[AI Fallback] Failed to parse OpenAI response for ${coin}:`, aiResponse);
       return FALLBACK_ONCHAIN_DATA[coin] || { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: new Date().toISOString() };
     }
 
+    const [, activeWallets, growth, largeTransactions] = matches;
     return {
       coin,
-      activeWallets,
-      activeWalletsGrowth,
-      largeTransactions,
+      activeWallets: parseInt(activeWallets) || 0,
+      activeWalletsGrowth: parseFloat(growth) || 0,
+      largeTransactions: parseInt(largeTransactions) || 0,
       timestamp: new Date().toISOString()
     };
   } catch (error: any) {
@@ -161,7 +155,7 @@ const fetchAISentimentData = async (news: Event[]): Promise<SentimentData> => {
       }
     );
 
-    const sentiment = response.data[0];
+    const sentiment = Array.isArray(response.data) ? response.data[0] : response.data;
     console.log('[AI Sentiment] Hugging Face response:', sentiment);
 
     const positiveScore = sentiment.find((s: any) => s.label === 'POSITIVE')?.score || 0;
