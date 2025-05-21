@@ -140,18 +140,19 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                   <CartesianGrid strokeDasharray="3 3" />
                   {selectedCoins.length > 5 ? (
                     <>
-                      <XAxis type="number" />
+                      <XAxis type="number" allowDataOverflow={false} />
                       <YAxis
                         dataKey="coin"
                         type="category"
-                        width={80} // Increased width to accommodate more coins
-                        tick={{ fontSize: 12 }} // Smaller font to fit more labels
+                        width={80}
+                        tick={{ fontSize: 12 }}
+                        interval={0} // Ensure all labels are shown
                       />
                     </>
                   ) : (
                     <>
-                      <XAxis dataKey="coin" />
-                      <YAxis />
+                      <XAxis dataKey="coin" interval={0} />
+                      <YAxis allowDataOverflow={false} />
                     </>
                   )}
                   <Tooltip content={<CustomTooltip />} />
@@ -161,6 +162,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                     dataKey="growth"
                     name="Growth (%)"
                     shape={<GrowthBar />}
+                    minPointSize={1} // Ensure bars are visible even for small values
                   />
                 </BarChart>
               </ResponsiveContainer>
@@ -179,18 +181,19 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                   <CartesianGrid strokeDasharray="3 3" />
                   {selectedCoins.length > 5 ? (
                     <>
-                      <XAxis type="number" />
+                      <XAxis type="number" allowDataOverflow={false} />
                       <YAxis
                         dataKey="coin"
                         type="category"
-                        width={80} // Increased width to accommodate more coins
-                        tick={{ fontSize: 12 }} // Smaller font to fit more labels
+                        width={80}
+                        tick={{ fontSize: 12 }}
+                        interval={0}
                       />
                     </>
                   ) : (
                     <>
-                      <XAxis dataKey="coin" />
-                      <YAxis />
+                      <XAxis dataKey="coin" interval={0} />
+                      <YAxis allowDataOverflow={false} />
                     </>
                   )}
                   <Tooltip content={<CustomTooltip />} />
@@ -199,6 +202,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                     dataKey="transactions"
                     name="Transactions"
                     fill="#3b82f6"
+                    minPointSize={1}
                   />
                 </BarChart>
               </ResponsiveContainer>
