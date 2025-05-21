@@ -43,7 +43,7 @@ const FALLBACK_ONCHAIN_DATA: Record<string, Partial<OnChainData>> = {
 const SUPPORTED_COINS = {
   'BTC': { santiment: 'bitcoin', cryptoPanic: 'BTC', coinMetrics: 'btc' },
   'ETH': { santiment: 'ethereum', cryptoPanic: 'ETH', coinMetrics: 'eth' },
-  'SOL': { santiment: 'solana', cryptoPanic: 'SOL', coinMetrics: 'solana' },
+  'SOL': { santiment: 'solana', cryptoPanic: 'SOL', coinMetrics: 'sol' }, // Fixed: Changed 'solana' to 'sol'
   'USDT': { santiment: 'tether', cryptoPanic: 'USDT', coinMetrics: 'usdt' },
   'BNB': { santiment: 'binance-coin', cryptoPanic: 'BNB', coinMetrics: 'bnb' },
   'USDC': { santiment: 'usd-coin', cryptoPanic: 'USDC', coinMetrics: 'usdc' },
@@ -65,6 +65,7 @@ const SUPPORTED_COINS = {
 
 export const fetchSentimentData = async (coin: string): Promise<SentimentData> => {
   const apiKey = import.meta.env.VITE_SANTIMENT_API_KEY;
+  console.log(`Santiment API Key loaded: ${apiKey ? 'Yes' : 'No'}`); // Debug log
   if (!apiKey) {
     throw new Error('Santiment API key not configured');
   }
@@ -259,6 +260,7 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
 
 export const fetchEvents = async (): Promise<Event[]> => {
   const apiToken = import.meta.env.VITE_CRYPTOPANIC_API_TOKEN;
+  console.log(`CryptoPanic API Token loaded: ${apiToken ? 'Yes' : 'No'}`); // Debug log
   if (!apiToken) {
     throw new Error('CryptoPanic API token not configured');
   }
