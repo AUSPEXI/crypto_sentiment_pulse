@@ -1,124 +1,269 @@
-// src/utils/api.ts
+import axios from 'axios';
 import { SentimentData, OnChainData, Event } from '../types';
 
-export const SUPPORTED_COINS: Record<string, string> = {
-  BTC: 'bitcoin',
-  ETH: 'ethereum',
-  USDT: 'tether',
-  BNB: 'binance-coin',
-  SOL: 'solana',
-  USDC: 'usd-coin',
-  XRP: 'xrp',
-  DOGE: 'dogecoin',
-  TON: 'toncoin',
-  ADA: 'cardano',
-  TRX: 'tron',
-  AVAX: 'avalanche',
-  SHIB: 'shiba-inu',
-  LINK: 'chainlink',
-  BCH: 'bitcoin-cash',
-  DOT: 'polkadot',
-  NEAR: 'near-protocol',
-  LTC: 'litecoin',
-  MATIC: 'polygon',
-  PEPE: 'pepe'
+// Retry configuration
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY = 60000; // 1 minute
+const MAX_RETRY_DELAY = 300000; // 5 minutes
+
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const isNetworkError = (error: any): boolean => {
+  return !error.response || 
+    error.code === 'ECONNABORTED' || 
+    error.message.includes('Network Error') ||
+    (error.code && error.code.includes('ECONN'));
+};
+
+const getRetryDelay = (attempt: number): number => {
+  return Math.min(INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1), MAX_RETRY_DELAY);
+};
+
+// Map of supported coins for different APIs
+const SUPPORTED_COINS = {
+  'BTC': { santiment: 'bitcoin', cryptoPanic: 'BTC', coinMetrics: 'btc' },
+  'ETH': { santiment: 'ethereum', cryptoPanic: 'ETH', coinMetrics: 'eth' },
+  'SOL': { santiment: 'solana', cryptoPanic: 'SOL', coinMetrics: 'solana' }
 };
 
 export const fetchSentimentData = async (coin: string): Promise<SentimentData> => {
-  const slug = SUPPORTED_COINS[coin];
-  if (!slug) throw new Error(`Unsupported coin: ${coin}`);
-
-  const url = `https://api.coingecko.com/api/v3/coins/${slug}?community_data=true`;
-  console.log(`Fetching sentiment data for ${coin} (Attempt 1/3) with slug: ${slug}`);
-
-  try {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`Request failed with status code ${response.status}`);
-
-    const data = await response.json();
-    // Approximate sentiment using community data (e.g., Twitter followers, Reddit activity)
-    const positive = data.community_data.twitter_followers || 0;
-    const negative = data.community_data.reddit_average_comments_48h || 0;
-    const total = positive + negative + (data.community_data.reddit_subscribers || 0);
-    const score = total > 0 ? (positive / total) * 100 : 0;
-
-    return {
-      coin,
-      positive: (positive / total) * 100 || 0,
-      negative: (negative / total) * 100 || 0,
-      neutral: total > 0 ? ((data.community_data.reddit_subscribers || 0) / total) * 100 : 0,
-      score,
-      timestamp: new Date().toISOString()
-    };
-  } catch (error) {
-    console.error(`Error fetching sentiment data for ${coin}:`, error);
-    throw new Error(`Failed to fetch sentiment data for ${coin}: ${error.message}`);
+  const apiKey = import.meta.env.VITE_SANTIMENT_API_KEY;
+  if (!apiKey) {
+    throw new Error('Santiment API key not configured');
   }
+
+  const coinConfig = SUPPORTED_COINS[coin];
+  if (!coinConfig) {
+    throw new Error(`Unsupported coin: ${coin}`);
+  }
+
+  const coinSlug = coinConfig.santiment;
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      console.log(`Fetching sentiment data for ${coin} (Attempt ${attempt}/${MAX_RETRIES}) with slug: ${coinSlug}`);
+      
+      const response = await axios.get('/.netlify/functions/proxy', {
+        params: {
+          url: `https://api.santiment.net/graphql`,
+          query: `{
+            getMetric(metric: "sentiment_balance") {
+              timeseriesData(
+                slug: "${coinSlug}"
+                from: "${new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()}"
+                to: "${new Date().toISOString()}"
+                interval: "1d"
+              ) {
+                datetime
+                value
+              }
+            }
+          }`
+        },
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 20000
+      });
+
+      console.log(`Santiment raw response for ${coin}:`, response.data);
+
+      if (!response.data?.data?.getMetric?.timeseriesData?.[0]) {
+        throw new Error(`No sentiment data available for ${coin}`);
+      }
+
+      const data = response.data.data.getMetric.timeseriesData[0];
+      const sentimentValue = data.value || 0;
+      
+      // Normalize sentiment value to 0-100 range
+      const normalizedValue = (sentimentValue + 1) * 50;
+      
+      return {
+        coin,
+        positive: Math.max(0, normalizedValue - 50) * 2,
+        negative: Math.max(0, 50 - normalizedValue) * 2,
+        neutral: Math.min(Math.abs(50 - normalizedValue) * 2, 100),
+        score: normalizedValue,
+        timestamp: data.datetime
+      };
+    } catch (error: any) {
+      console.error(`Error fetching sentiment data for ${coin} (Attempt ${attempt}):`, {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        headers: error.response?.headers
+      });
+
+      if (error.response?.status === 401) {
+        throw new Error('Invalid Santiment API key');
+      }
+
+      if (error.response?.status === 402) {
+        throw new Error('Santiment API requires a paid subscription for this endpoint');
+      }
+
+      if ((error.response?.status === 429 || isNetworkError(error)) && attempt < MAX_RETRIES) {
+        const retryDelay = getRetryDelay(attempt);
+        console.log(`Retrying in ${retryDelay}ms due to rate limit or network issue...`);
+        await delay(retryDelay);
+        continue;
+      }
+
+      if (attempt === MAX_RETRIES) {
+        throw new Error(`Failed to fetch sentiment data for ${coin}: ${error.message}`);
+      }
+    }
+  }
+
+  throw new Error(`Failed to fetch sentiment data for ${coin}`);
 };
 
 export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
-  const slug = SUPPORTED_COINS[coin];
-  if (!slug) throw new Error(`Unsupported coin: ${coin}`);
+  const coinConfig = SUPPORTED_COINS[coin];
+  if (!coinConfig) {
+    throw new Error(`Unsupported coin: ${coin}`);
+  }
 
-  const url = `https://community-api.coinmetrics.io/v4/timeseries/asset-metrics?assets=${slug}&metrics=AdrActCnt,TxTfrValAdjUSD`;
-  console.log(`Fetching on-chain data for ${coin} (Attempt 1/3)`);
+  const coinSymbol = coinConfig.coinMetrics;
+  const endTime = new Date().toISOString().split('T')[0];
+  const startTime = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      console.log(`Invalid request for ${coin}, using fallback`);
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      console.log(`Fetching on-chain data for ${coin} (Attempt ${attempt}/${MAX_RETRIES})`);
+      
+      const response = await axios.get('https://community-api.coinmetrics.io/v4/timeseries/asset-metrics', {
+        params: {
+          assets: coinSymbol.toLowerCase(),
+          metrics: 'AdrActCnt,TxCnt',
+          frequency: '1d',
+          page_size: 2,
+          start_time: startTime,
+          end_time: endTime
+        },
+        timeout: 20000
+      });
+
+      console.log(`CoinMetrics response for ${coin}:`, response.data);
+
+      if (!response.data?.data || response.data.data.length < 2) {
+        throw new Error(`Insufficient data available for ${coin}`);
+      }
+
+      const metrics = response.data.data;
+      const currentWallets = parseInt(metrics[1].AdrActCnt) || 0;
+      const previousWallets = parseInt(metrics[0].AdrActCnt) || 0;
+      const growth = previousWallets > 0 ? ((currentWallets - previousWallets) / previousWallets) * 100 : 0;
+
       return {
         coin,
-        activeWallets: 0,
-        activeWalletsGrowth: 0,
-        largeTransactions: 0,
+        activeWallets: currentWallets,
+        activeWalletsGrowth: growth,
+        largeTransactions: parseInt(metrics[1].TxCnt) || 0,
         timestamp: new Date().toISOString()
       };
+    } catch (error: any) {
+      console.error(`Error fetching on-chain data for ${coin} (Attempt ${attempt}):`, {
+        message: error.message,
+        status: error.response?.status,
+        data: JSON.stringify(error.response?.data) || error.message
+      });
+
+      if (error.response?.status === 400) {
+        throw new Error(`Invalid request to CoinMetrics API for ${coin}: ${JSON.stringify(error.response?.data) || error.message}`);
+      }
+
+      if ((error.response?.status === 429 || isNetworkError(error)) && attempt < MAX_RETRIES) {
+        const retryDelay = getRetryDelay(attempt);
+        console.log(`Retrying in ${retryDelay}ms due to rate limit or network issue...`);
+        await delay(retryDelay);
+        continue;
+      }
+
+      if (attempt === MAX_RETRIES) {
+        throw new Error(`Failed to fetch on-chain data for ${coin}: ${error.message}`);
+      }
     }
-
-    const data = await response.json();
-    console.log(`CoinMetrics raw response for ${coin}:`, data);
-
-    const latest = data.data?.[0]?.metrics?.[0] || {};
-    const previous = data.data?.[1]?.metrics?.[0] || {};
-    const activeWallets = parseInt(latest.AdrActCnt) || 0;
-    const prevWallets = parseInt(previous.AdrActCnt) || 0;
-    const growth = prevWallets > 0 ? ((activeWallets - prevWallets) / prevWallets) * 100 : 0;
-
-    return {
-      coin,
-      activeWallets,
-      activeWalletsGrowth: growth,
-      largeTransactions: parseFloat(latest.TxTfrValAdjUSD) || 0,
-      timestamp: latest.time || new Date().toISOString()
-    };
-  } catch (error) {
-    console.error(`Error fetching on-chain data for ${coin}:`, error);
-    throw new Error(`Failed to fetch on-chain data for ${coin}`);
   }
+
+  throw new Error(`Failed to fetch on-chain data for ${coin}`);
 };
 
 export const fetchEvents = async (): Promise<Event[]> => {
-  const apiKey = import.meta.env.VITE_CRYPTOPANIC_API_TOKEN;
-  const currencies = Object.keys(SUPPORTED_COINS).join(',');
-  const url = `https://cryptopanic.com/api/v1/posts/?auth_token=${apiKey}&currencies=${currencies}`;
-  console.log(`Fetching events (Attempt 1/3)`);
-
-  try {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`Request failed with status code ${response.status}`);
-
-    const data = await response.json();
-    return data.results.map((post: any) => ({
-      id: post.id,
-      coin: post.currencies?.[0]?.code || 'N/A',
-      date: post.created_at,
-      title: post.title,
-      description: post.description || post.title,
-      eventType: post.kind || 'news'
-    }));
-  } catch (error) {
-    console.error(`Error fetching events:`, error);
-    throw new Error(`Failed to fetch events`);
+  const apiToken = import.meta.env.VITE_CRYPTOPANIC_API_TOKEN;
+  if (!apiToken) {
+    throw new Error('CryptoPanic API token not configured');
   }
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      console.log(`Fetching events (Attempt ${attempt}/${MAX_RETRIES})`);
+      
+      const response = await axios.get('/.netlify/functions/proxy', {
+        params: {
+          url: 'https://cryptopanic.com/api/v1/posts',
+          auth_token: apiToken,
+          public: 'true',
+          filter: 'hot',
+          currencies: 'BTC,ETH,SOL'
+        },
+        headers: {
+          'Accept': 'application/json'
+        },
+        timeout: 20000
+      });
+
+      // Validate response format
+      if (!response.data || typeof response.data !== 'object') {
+        console.error('Invalid response format:', response.data);
+        throw new Error('Invalid API response format');
+      }
+
+      // Check for HTML content in response
+      if (typeof response.data === 'string' && response.data.includes('<!doctype html>')) {
+        console.error('Received HTML instead of JSON');
+        throw new Error('Invalid API response: received HTML instead of JSON');
+      }
+
+      console.log('CryptoPanic raw response:', response.data);
+
+      if (!Array.isArray(response.data.results)) {
+        console.error('Invalid response structure:', response.data);
+        return [];
+      }
+
+      return response.data.results.map((post: any) => ({
+        id: (post.id || Date.now()).toString(),
+        coin: Array.isArray(post.currencies) && post.currencies[0]?.code ? post.currencies[0].code : 'UNKNOWN',
+        date: post.published_at || new Date().toISOString(),
+        title: post.title || 'No title available',
+        description: post.text || post.title || 'No description available',
+        eventType: post.kind || 'News'
+      }));
+    } catch (error: any) {
+      console.error(`Error fetching events (Attempt ${attempt}):`, {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      });
+
+      if (error.response?.status === 401) {
+        throw new Error('Invalid CryptoPanic API token');
+      }
+
+      if ((error.response?.status === 429 || isNetworkError(error)) && attempt < MAX_RETRIES) {
+        const retryDelay = getRetryDelay(attempt);
+        console.log(`Retrying in ${retryDelay}ms due to rate limit or network issue...`);
+        await delay(retryDelay);
+        continue;
+      }
+
+      if (attempt === MAX_RETRIES) {
+        return [];
+      }
+    }
+  }
+
+  return [];
 };
