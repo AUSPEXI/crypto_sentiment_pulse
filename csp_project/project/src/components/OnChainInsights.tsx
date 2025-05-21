@@ -16,26 +16,46 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
-      
+
       try {
+        // Fetch data for all coins in parallel
+        const fetchPromises = selectedCoins.map(async (coin) => {
+          try {
+            const data = await fetchOnChainData(coin);
+            return { coin, data };
+          } catch (err) {
+            console.warn(`Failed to fetch on-chain data for ${coin}:`, err);
+            // Fallback data for unsupported coins
+            return {
+              coin,
+              data: {
+                coin,
+                activeWallets: 0,
+                activeWalletsGrowth: 0,
+                largeTransactions: 0,
+                timestamp: new Date().toISOString()
+              }
+            };
+          }
+        });
+
+        const results = await Promise.all(fetchPromises);
         const newData: Record<string, OnChainData> = {};
-        
-        for (const coin of selectedCoins) {
-          const data = await fetchOnChainData(coin);
+        results.forEach(({ coin, data }) => {
           newData[coin] = data;
-        }
-        
+        });
+
         setOnChainData(newData);
       } catch (err) {
         setError('Failed to fetch on-chain data. Please try again later.');
-        console.error(err);
+        console.error('Overall fetch error:', err);
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchData();
-    
+
     const intervalId = setInterval(fetchData, 5 * 60 * 1000);
     return () => clearInterval(intervalId);
   }, [selectedCoins]);
@@ -53,7 +73,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
     if (active && payload && payload.length) {
       const value = payload[0].value;
       const isGrowth = payload[0].dataKey === 'growth';
-      
+
       return (
         <div className="bg-white p-3 rounded-lg shadow-md border border-gray-200">
           <p className="font-medium text-gray-900">{label}</p>
@@ -104,15 +124,15 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   return (
     <div className="bg-white rounded-lg shadow-md p-4">
       <h2 className="text-lg font-semibold text-blue-800 mb-4">On-Chain Insights</h2>
-      
+
       {loading && <p className="text-gray-500">Loading on-chain data...</p>}
-      
+
       {error && (
         <div className="bg-red-100 text-red-700 p-3 rounded-md mb-4">
           {error}
         </div>
       )}
-      
+
       {!loading && !error && (
         <div className="space-y-6">
           <div>
@@ -121,7 +141,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={activeWalletsData}
-                  layout={selectedCoins.length > 5 ? "vertical" : "horizontal"}
+                  layout={selectedCoins.length > 5 ? 'vertical' : 'horizontal'}
                   margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
@@ -148,14 +168,14 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
               </ResponsiveContainer>
             </div>
           </div>
-          
+
           <div>
             <h3 className="text-md font-medium text-gray-700 mb-2">Large Transactions</h3>
             <div style={{ height: `${chartHeight}px` }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={largeTransactionsData}
-                  layout={selectedCoins.length > 5 ? "vertical" : "horizontal"}
+                  layout={selectedCoins.length > 5 ? 'vertical' : 'horizontal'}
                   margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
@@ -181,12 +201,12 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
               </ResponsiveContainer>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {selectedCoins.map(coin => {
               const data = onChainData[coin];
               if (!data) return null;
-              
+
               return (
                 <div key={coin} className="bg-gray-50 p-3 rounded-md">
                   <h3 className="font-medium text-gray-800">{coin} On-Chain Data</h3>
