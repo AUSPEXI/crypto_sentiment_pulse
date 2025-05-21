@@ -21,26 +21,26 @@ const getRetryDelay = (attempt: number): number => {
 
 // Static fallback data (used as a last resort)
 const FALLBACK_ONCHAIN_DATA: Record<string, OnChainData> = {
-  'BTC': { coin: 'BTC', activeWallets: 900000, activeWalletsGrowth: 2.1, largeTransactions: 1500, timestamp: '2025-05-21T21:00:00Z' },
-  'ETH': { coin: 'ETH', activeWallets: 600000, activeWalletsGrowth: 1.5, largeTransactions: 1200, timestamp: '2025-05-21T21:00:00Z' },
-  'SOL': { coin: 'SOL', activeWallets: 200000, activeWalletsGrowth: -0.5, largeTransactions: 800, timestamp: '2025-05-21T21:00:00Z' },
-  'USDT': { coin: 'USDT', activeWallets: 500000, activeWalletsGrowth: 0.8, largeTransactions: 2000, timestamp: '2025-05-21T21:00:00Z' },
-  'BNB': { coin: 'BNB', activeWallets: 300000, activeWalletsGrowth: 1.2, largeTransactions: 900, timestamp: '2025-05-21T21:00:00Z' },
-  'USDC': { coin: 'USDC', activeWallets: 450000, activeWalletsGrowth: 0.5, largeTransactions: 1800, timestamp: '2025-05-21T21:00:00Z' },
-  'XRP': { coin: 'XRP', activeWallets: 250000, activeWalletsGrowth: -0.2, largeTransactions: 700, timestamp: '2025-05-21T21:00:00Z' },
-  'DOGE': { coin: 'DOGE', activeWallets: 150000, activeWalletsGrowth: 0.3, largeTransactions: 500, timestamp: '2025-05-21T21:00:00Z' },
-  'TON': { coin: 'TON', activeWallets: 100000, activeWalletsGrowth: 0.7, largeTransactions: 400, timestamp: '2025-05-21T21:00:00Z' },
-  'ADA': { coin: 'ADA', activeWallets: 200000, activeWalletsGrowth: -0.1, largeTransactions: 600, timestamp: '2025-05-21T21:00:00Z' },
-  'TRX': { coin: 'TRX', activeWallets: 180000, activeWalletsGrowth: 0.4, largeTransactions: 550, timestamp: '2025-05-21T21:00:00Z' },
-  'AVAX': { coin: 'AVAX', activeWallets: 120000, activeWalletsGrowth: 0.6, largeTransactions: 450, timestamp: '2025-05-21T21:00:00Z' },
-  'SHIB': { coin: 'SHIB', activeWallets: 80000, activeWalletsGrowth: 0.9, largeTransactions: 300, timestamp: '2025-05-21T21:00:00Z' },
-  'LINK': { coin: 'LINK', activeWallets: 90000, activeWalletsGrowth: 0.2, largeTransactions: 350, timestamp: '2025-05-21T21:00:00Z' },
-  'BCH': { coin: 'BCH', activeWallets: 110000, activeWalletsGrowth: -0.3, largeTransactions: 400, timestamp: '2025-05-21T21:00:00Z' },
-  'DOT': { coin: 'DOT', activeWallets: 130000, activeWalletsGrowth: 0.5, largeTransactions: 500, timestamp: '2025-05-21T21:00:00Z' },
-  'NEAR': { coin: 'NEAR', activeWallets: 95000, activeWalletsGrowth: 0.1, largeTransactions: 320, timestamp: '2025-05-21T21:00:00Z' },
-  'LTC': { coin: 'LTC', activeWallets: 140000, activeWalletsGrowth: -0.4, largeTransactions: 600, timestamp: '2025-05-21T21:00:00Z' },
-  'MATIC': { coin: 'MATIC', activeWallets: 160000, activeWalletsGrowth: 0.3, largeTransactions: 700, timestamp: '2025-05-21T21:00:00Z' },
-  'PEPE': { coin: 'PEPE', activeWallets: 70000, activeWalletsGrowth: 1.0, largeTransactions: 200, timestamp: '2025-05-21T21:00:00Z' }
+  'BTC': { coin: 'BTC', activeWallets: 900000, activeWalletsGrowth: 2.1, largeTransactions: 1500, timestamp: '2025-05-21T22:00:00Z' },
+  'ETH': { coin: 'ETH', activeWallets: 600000, activeWalletsGrowth: 1.5, largeTransactions: 1200, timestamp: '2025-05-21T22:00:00Z' },
+  'SOL': { coin: 'SOL', activeWallets: 200000, activeWalletsGrowth: -0.5, largeTransactions: 800, timestamp: '2025-05-21T22:00:00Z' },
+  'USDT': { coin: 'USDT', activeWallets: 500000, activeWalletsGrowth: 0.8, largeTransactions: 2000, timestamp: '2025-05-21T22:00:00Z' },
+  'BNB': { coin: 'BNB', activeWallets: 300000, activeWalletsGrowth: 1.2, largeTransactions: 900, timestamp: '2025-05-21T22:00:00Z' },
+  'USDC': { coin: 'USDC', activeWallets: 450000, activeWalletsGrowth: 0.5, largeTransactions: 1800, timestamp: '2025-05-21T22:00:00Z' },
+  'XRP': { coin: 'XRP', activeWallets: 250000, activeWalletsGrowth: -0.2, largeTransactions: 700, timestamp: '2025-05-21T22:00:00Z' },
+  'DOGE': { coin: 'DOGE', activeWallets: 150000, activeWalletsGrowth: 0.3, largeTransactions: 500, timestamp: '2025-05-21T22:00:00Z' },
+  'TON': { coin: 'TON', activeWallets: 100000, activeWalletsGrowth: 0.7, largeTransactions: 400, timestamp: '2025-05-21T22:00:00Z' },
+  'ADA': { coin: 'ADA', activeWallets: 200000, activeWalletsGrowth: -0.1, largeTransactions: 600, timestamp: '2025-05-21T22:00:00Z' },
+  'TRX': { coin: 'TRX', activeWallets: 180000, activeWalletsGrowth: 0.4, largeTransactions: 550, timestamp: '2025-05-21T22:00:00Z' },
+  'AVAX': { coin: 'AVAX', activeWallets: 120000, activeWalletsGrowth: 0.6, largeTransactions: 450, timestamp: '2025-05-21T22:00:00Z' },
+  'SHIB': { coin: 'SHIB', activeWallets: 80000, activeWalletsGrowth: 0.9, largeTransactions: 300, timestamp: '2025-05-21T22:00:00Z' },
+  'LINK': { coin: 'LINK', activeWallets: 90000, activeWalletsGrowth: 0.2, largeTransactions: 350, timestamp: '2025-05-21T22:00:00Z' },
+  'BCH': { coin: 'BCH', activeWallets: 110000, activeWalletsGrowth: -0.3, largeTransactions: 400, timestamp: '2025-05-21T22:00:00Z' },
+  'DOT': { coin: 'DOT', activeWallets: 130000, activeWalletsGrowth: 0.5, largeTransactions: 500, timestamp: '2025-05-21T22:00:00Z' },
+  'NEAR': { coin: 'NEAR', activeWallets: 95000, activeWalletsGrowth: 0.1, largeTransactions: 320, timestamp: '2025-05-21T22:00:00Z' },
+  'LTC': { coin: 'LTC', activeWallets: 140000, activeWalletsGrowth: -0.4, largeTransactions: 600, timestamp: '2025-05-21T22:00:00Z' },
+  'MATIC': { coin: 'MATIC', activeWallets: 160000, activeWalletsGrowth: 0.3, largeTransactions: 700, timestamp: '2025-05-21T22:00:00Z' },
+  'PEPE': { coin: 'PEPE', activeWallets: 70000, activeWalletsGrowth: 1.0, largeTransactions: 200, timestamp: '2025-05-21T22:00:00Z' }
 };
 
 const SUPPORTED_COINS = {
@@ -69,6 +69,7 @@ const SUPPORTED_COINS = {
 // AI-powered fallback for on-chain data using OpenAI
 const fetchAIFallbackOnChainData = async (coin: string): Promise<OnChainData> => {
   const openAiKey = import.meta.env.VITE_OPENAI_API_KEY;
+  console.log('[AI Fallback] OpenAI API Key loaded:', openAiKey ? 'Yes' : 'No');
   if (!openAiKey) {
     console.warn(`[AI Fallback] OpenAI API key not configured, using static fallback for ${coin}`);
     return FALLBACK_ONCHAIN_DATA[coin] || { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: new Date().toISOString() };
@@ -87,7 +88,7 @@ const fetchAIFallbackOnChainData = async (coin: string): Promise<OnChainData> =>
           },
           {
             role: 'user',
-            content: `Estimate the active wallets, active wallet growth (%), and large transactions for ${coin} as of today, May 21, 2025. Base your estimate on typical trends for this coin.`
+            content: `Estimate the active wallets, active wallet growth (%), and large transactions for ${coin} as of today, May 21, 2025. Base your estimate on typical trends for this coin. Return the response in the format: "Active Wallets: X, Growth: Y, Large Transactions: Z".`
           }
         ],
         max_tokens: 100
@@ -104,16 +105,25 @@ const fetchAIFallbackOnChainData = async (coin: string): Promise<OnChainData> =>
     const aiResponse = response.data.choices[0].message.content;
     console.log(`[AI Fallback] OpenAI response for ${coin}:`, aiResponse);
 
-    // Parse the AI response (simplified parsing for example)
+    // Parse the AI response
     const activeWalletsMatch = aiResponse.match(/Active Wallets: (\d+)/);
     const growthMatch = aiResponse.match(/Growth: ([-]?\d+\.\d+)/);
     const transactionsMatch = aiResponse.match(/Large Transactions: (\d+)/);
 
+    const activeWallets = activeWalletsMatch ? parseInt(activeWalletsMatch[1]) : 0;
+    const activeWalletsGrowth = growthMatch ? parseFloat(growthMatch[1]) : 0;
+    const largeTransactions = transactionsMatch ? parseInt(transactionsMatch[1]) : 0;
+
+    if (activeWallets === 0 && activeWalletsGrowth === 0 && largeTransactions === 0) {
+      console.warn(`[AI Fallback] Failed to parse meaningful data for ${coin}, using static fallback`);
+      return FALLBACK_ONCHAIN_DATA[coin] || { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: new Date().toISOString() };
+    }
+
     return {
       coin,
-      activeWallets: activeWalletsMatch ? parseInt(activeWalletsMatch[1]) : 0,
-      activeWalletsGrowth: growthMatch ? parseFloat(growthMatch[1]) : 0,
-      largeTransactions: transactionsMatch ? parseInt(transactionsMatch[1]) : 0,
+      activeWallets,
+      activeWalletsGrowth,
+      largeTransactions,
       timestamp: new Date().toISOString()
     };
   } catch (error: any) {
@@ -125,17 +135,23 @@ const fetchAIFallbackOnChainData = async (coin: string): Promise<OnChainData> =>
 // AI-powered sentiment analysis using Hugging Face
 const fetchAISentimentData = async (news: Event[]): Promise<SentimentData> => {
   const huggingFaceKey = import.meta.env.VITE_HUGGINGFACE_API_TOKEN;
+  console.log('[AI Sentiment] Hugging Face API Key loaded:', huggingFaceKey ? 'Yes' : 'No');
   if (!huggingFaceKey) {
     console.warn('[AI Sentiment] Hugging Face API key not configured, returning neutral sentiment');
+    return { coin: news[0]?.coin || 'UNKNOWN', positive: 33.33, negative: 33.33, neutral: 33.33, score: 50, timestamp: new Date().toISOString() };
+  }
+
+  if (!news || news.length === 0) {
+    console.warn('[AI Sentiment] No news data available for sentiment analysis');
     return { coin: 'UNKNOWN', positive: 33.33, negative: 33.33, neutral: 33.33, score: 50, timestamp: new Date().toISOString() };
   }
 
   try {
     console.log('[AI Sentiment] Analyzing sentiment using Hugging Face');
-    const textToAnalyze = news.map(event => event.title + ' ' + event.description).join(' ');
+    const textToAnalyze = news.map(event => event.title + ' ' + event.description).join(' ').slice(0, 512);
     const response = await axios.post(
       'https://api-inference.huggingface.co/models/distilbert-base-uncased-finetuned-sst-2-english',
-      { inputs: textToAnalyze.slice(0, 512) }, // Limit input size
+      { inputs: textToAnalyze },
       {
         headers: {
           'Authorization': `Bearer ${huggingFaceKey}`,
@@ -151,8 +167,10 @@ const fetchAISentimentData = async (news: Event[]): Promise<SentimentData> => {
     const positiveScore = sentiment.find((s: any) => s.label === 'POSITIVE')?.score || 0;
     const negativeScore = sentiment.find((s: any) => s.label === 'NEGATIVE')?.score || 0;
     const total = positiveScore + negativeScore;
+
     if (total === 0) {
-      return { coin: 'UNKNOWN', positive: 33.33, negative: 33.33, neutral: 33.33, score: 50, timestamp: new Date().toISOString() };
+      console.warn('[AI Sentiment] No meaningful sentiment scores, returning neutral');
+      return { coin: news[0]?.coin || 'UNKNOWN', positive: 33.33, negative: 33.33, neutral: 33.33, score: 50, timestamp: new Date().toISOString() };
     }
 
     const positive = (positiveScore / total) * 100;
@@ -169,15 +187,15 @@ const fetchAISentimentData = async (news: Event[]): Promise<SentimentData> => {
     };
   } catch (error: any) {
     console.error('[AI Sentiment] Error analyzing sentiment:', error.message);
-    return { coin: 'UNKNOWN', positive: 33.33, negative: 33.33, neutral: 33.33, score: 50, timestamp: new Date().toISOString() };
+    return { coin: news[0]?.coin || 'UNKNOWN', positive: 33.33, negative: 33.33, neutral: 33.33, score: 50, timestamp: new Date().toISOString() };
   }
 };
 
 export const fetchSentimentData = async (coin: string): Promise<SentimentData> => {
-  // Since Santiment was never used, we'll rely on AI sentiment analysis
   const events = await fetchEvents();
   const coinEvents = events.filter(event => event.coin === coin);
   if (coinEvents.length === 0) {
+    console.warn(`[Sentiment] No events found for ${coin}, returning neutral sentiment`);
     return { coin, positive: 33.33, negative: 33.33, neutral: 33.33, score: 50, timestamp: new Date().toISOString() };
   }
   return fetchAISentimentData(coinEvents);
@@ -263,7 +281,8 @@ export const fetchEvents = async (): Promise<Event[]> => {
   const apiToken = import.meta.env.VITE_CRYPTOPANIC_API_TOKEN;
   console.log('[Events] CryptoPanic API Token loaded:', apiToken ? 'Yes' : 'No');
   if (!apiToken) {
-    throw new Error('CryptoPanic API token not configured');
+    console.warn('[Events] CryptoPanic API token not configured, returning empty events');
+    return [];
   }
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
@@ -317,7 +336,8 @@ export const fetchEvents = async (): Promise<Event[]> => {
       });
 
       if (error.response?.status === 401) {
-        throw new Error('Invalid CryptoPanic API token');
+        console.warn('[Events] Invalid CryptoPanic API token, returning empty events');
+        return [];
       }
 
       if ((error.response?.status === 429 || isNetworkError(error)) && attempt < MAX_RETRIES) {
@@ -328,10 +348,12 @@ export const fetchEvents = async (): Promise<Event[]> => {
       }
 
       if (attempt === MAX_RETRIES) {
+        console.warn('[Events] Max retries reached, returning empty events');
         return [];
       }
     }
   }
 
+  console.warn('[Events] Failed to fetch events after retries, returning empty events');
   return [];
 };
