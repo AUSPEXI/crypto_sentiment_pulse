@@ -1,6 +1,6 @@
 // src/utils/api.ts
 import axios from 'axios';
-import { SentimentData, OnChainData, Event } from '../types';
+import { SentimentData, OnChainData, Event } from '../types/index';
 
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 60000;
@@ -21,26 +21,26 @@ const getRetryDelay = (attempt: number): number => {
 
 // Static fallback data (used as a last resort)
 const FALLBACK_ONCHAIN_DATA: Record<string, OnChainData> = {
-  'BTC': { coin: 'BTC', activeWallets: 900000, activeWalletsGrowth: 2.1, largeTransactions: 1500, timestamp: '2025-05-22T06:08:00Z' },
-  'ETH': { coin: 'ETH', activeWallets: 600000, activeWalletsGrowth: 1.5, largeTransactions: 1200, timestamp: '2025-05-22T06:08:00Z' },
-  'SOL': { coin: 'SOL', activeWallets: 200000, activeWalletsGrowth: -0.5, largeTransactions: 800, timestamp: '2025-05-22T06:08:00Z' },
-  'USDT': { coin: 'USDT', activeWallets: 500000, activeWalletsGrowth: 0.8, largeTransactions: 2000, timestamp: '2025-05-22T06:08:00Z' },
-  'BNB': { coin: 'BNB', activeWallets: 300000, activeWalletsGrowth: 1.2, largeTransactions: 900, timestamp: '2025-05-22T06:08:00Z' },
-  'USDC': { coin: 'USDC', activeWallets: 450000, activeWalletsGrowth: 0.5, largeTransactions: 1800, timestamp: '2025-05-22T06:08:00Z' },
-  'XRP': { coin: 'XRP', activeWallets: 250000, activeWalletsGrowth: -0.2, largeTransactions: 700, timestamp: '2025-05-22T06:08:00Z' },
-  'DOGE': { coin: 'DOGE', activeWallets: 150000, activeWalletsGrowth: 0.3, largeTransactions: 500, timestamp: '2025-05-22T06:08:00Z' },
-  'TON': { coin: 'TON', activeWallets: 100000, activeWalletsGrowth: 0.7, largeTransactions: 400, timestamp: '2025-05-22T06:08:00Z' },
-  'ADA': { coin: 'ADA', activeWallets: 200000, activeWalletsGrowth: -0.1, largeTransactions: 600, timestamp: '2025-05-22T06:08:00Z' },
-  'TRX': { coin: 'TRX', activeWallets: 180000, activeWalletsGrowth: 0.4, largeTransactions: 550, timestamp: '2025-05-22T06:08:00Z' },
-  'AVAX': { coin: 'AVAX', activeWallets: 120000, activeWalletsGrowth: 0.6, largeTransactions: 450, timestamp: '2025-05-22T06:08:00Z' },
-  'SHIB': { coin: 'SHIB', activeWallets: 80000, activeWalletsGrowth: 0.9, largeTransactions: 300, timestamp: '2025-05-22T06:08:00Z' },
-  'LINK': { coin: 'LINK', activeWallets: 90000, activeWalletsGrowth: 0.2, largeTransactions: 350, timestamp: '2025-05-22T06:08:00Z' },
-  'BCH': { coin: 'BCH', activeWallets: 110000, activeWalletsGrowth: -0.3, largeTransactions: 400, timestamp: '2025-05-22T06:08:00Z' },
-  'DOT': { coin: 'DOT', activeWallets: 130000, activeWalletsGrowth: 0.5, largeTransactions: 500, timestamp: '2025-05-22T06:08:00Z' },
-  'NEAR': { coin: 'NEAR', activeWallets: 95000, activeWalletsGrowth: 0.1, largeTransactions: 320, timestamp: '2025-05-22T06:08:00Z' },
-  'LTC': { coin: 'LTC', activeWallets: 140000, activeWalletsGrowth: -0.4, largeTransactions: 600, timestamp: '2025-05-22T06:08:00Z' },
-  'MATIC': { coin: 'MATIC', activeWallets: 160000, activeWalletsGrowth: 0.3, largeTransactions: 700, timestamp: '2025-05-22T06:08:00Z' },
-  'PEPE': { coin: 'PEPE', activeWallets: 70000, activeWalletsGrowth: 1.0, largeTransactions: 200, timestamp: '2025-05-22T06:08:00Z' }
+  'BTC': { coin: 'BTC', activeWallets: 900000, activeWalletsGrowth: 2.1, largeTransactions: 1500, timestamp: '2025-05-22T06:23:00Z' },
+  'ETH': { coin: 'ETH', activeWallets: 600000, activeWalletsGrowth: 1.5, largeTransactions: 1200, timestamp: '2025-05-22T06:23:00Z' },
+  'SOL': { coin: 'SOL', activeWallets: 200000, activeWalletsGrowth: -0.5, largeTransactions: 800, timestamp: '2025-05-22T06:23:00Z' },
+  'USDT': { coin: 'USDT', activeWallets: 500000, activeWalletsGrowth: 0.8, largeTransactions: 2000, timestamp: '2025-05-22T06:23:00Z' },
+  'BNB': { coin: 'BNB', activeWallets: 300000, activeWalletsGrowth: 1.2, largeTransactions: 900, timestamp: '2025-05-22T06:23:00Z' },
+  'USDC': { coin: 'USDC', activeWallets: 450000, activeWalletsGrowth: 0.5, largeTransactions: 1800, timestamp: '2025-05-22T06:23:00Z' },
+  'XRP': { coin: 'XRP', activeWallets: 250000, activeWalletsGrowth: -0.2, largeTransactions: 700, timestamp: '2025-05-22T06:23:00Z' },
+  'DOGE': { coin: 'DOGE', activeWallets: 150000, activeWalletsGrowth: 0.3, largeTransactions: 500, timestamp: '2025-05-22T06:23:00Z' },
+  'TON': { coin: 'TON', activeWallets: 100000, activeWalletsGrowth: 0.7, largeTransactions: 400, timestamp: '2025-05-22T06:23:00Z' },
+  'ADA': { coin: 'ADA', activeWallets: 200000, activeWalletsGrowth: -0.1, largeTransactions: 600, timestamp: '2025-05-22T06:23:00Z' },
+  'TRX': { coin: 'TRX', activeWallets: 180000, activeWalletsGrowth: 0.4, largeTransactions: 550, timestamp: '2025-05-22T06:23:00Z' },
+  'AVAX': { coin: 'AVAX', activeWallets: 120000, activeWalletsGrowth: 0.6, largeTransactions: 450, timestamp: '2025-05-22T06:23:00Z' },
+  'SHIB': { coin: 'SHIB', activeWallets: 80000, activeWalletsGrowth: 0.9, largeTransactions: 300, timestamp: '2025-05-22T06:23:00Z' },
+  'LINK': { coin: 'LINK', activeWallets: 90000, activeWalletsGrowth: 0.2, largeTransactions: 350, timestamp: '2025-05-22T06:23:00Z' },
+  'BCH': { coin: 'BCH', activeWallets: 110000, activeWalletsGrowth: -0.3, largeTransactions: 400, timestamp: '2025-05-22T06:23:00Z' },
+  'DOT': { coin: 'DOT', activeWallets: 130000, activeWalletsGrowth: 0.5, largeTransactions: 500, timestamp: '2025-05-22T06:23:00Z' },
+  'NEAR': { coin: 'NEAR', activeWallets: 95000, activeWalletsGrowth: 0.1, largeTransactions: 320, timestamp: '2025-05-22T06:23:00Z' },
+  'LTC': { coin: 'LTC', activeWallets: 140000, activeWalletsGrowth: -0.4, largeTransactions: 600, timestamp: '2025-05-22T06:23:00Z' },
+  'MATIC': { coin: 'MATIC', activeWallets: 160000, activeWalletsGrowth: 0.3, largeTransactions: 700, timestamp: '2025-05-22T06:23:00Z' },
+  'PEPE': { coin: 'PEPE', activeWallets: 70000, activeWalletsGrowth: 1.0, largeTransactions: 200, timestamp: '2025-05-22T06:23:00Z' }
 };
 
 const SUPPORTED_COINS = {
@@ -76,13 +76,14 @@ const fetchAISentimentData = async (news: Event[]): Promise<SentimentData> => {
   }
 
   if (!news || news.length === 0) {
-    console.warn('[AI Sentiment] No news data available for sentiment analysis');
+    console.warn('[AI Sentiment] No news data available, returning neutral sentiment');
     return { coin: 'UNKNOWN', positive: 33.33, negative: 33.33, neutral: 33.33, score: 50, timestamp: new Date().toISOString() };
   }
 
   try {
-    console.log('[AI Sentiment] Analyzing sentiment using Hugging Face');
+    console.log('[AI Sentiment] Analyzing sentiment with news count:', news.length);
     const textToAnalyze = news.map(event => event.title + ' ' + event.description).join(' ').slice(0, 512);
+    console.log('[AI Sentiment] Text to analyze:', textToAnalyze.substring(0, 100) + '...');
     const response = await axios.post(
       'https://api-inference.huggingface.co/models/distilbert-base-uncased-finetuned-sst-2-english',
       { inputs: textToAnalyze },
@@ -96,12 +97,13 @@ const fetchAISentimentData = async (news: Event[]): Promise<SentimentData> => {
     );
 
     const sentiment = Array.isArray(response.data) ? response.data[0] : response.data;
-    console.log('[AI Sentiment] Hugging Face response:', sentiment);
+    console.log('[AI Sentiment] Raw Hugging Face response:', JSON.stringify(sentiment, null, 2));
 
     const positiveScore = sentiment.find((s: any) => s.label === 'POSITIVE')?.score || 0;
     const negativeScore = sentiment.find((s: any) => s.label === 'NEGATIVE')?.score || 0;
-    const total = positiveScore + negativeScore;
+    console.log('[AI Sentiment] Scores - Positive:', positiveScore, 'Negative:', negativeScore);
 
+    const total = positiveScore + negativeScore;
     if (total === 0) {
       console.warn('[AI Sentiment] No meaningful sentiment scores, returning neutral');
       return { coin: news[0]?.coin || 'UNKNOWN', positive: 33.33, negative: 33.33, neutral: 33.33, score: 50, timestamp: new Date().toISOString() };
@@ -120,8 +122,12 @@ const fetchAISentimentData = async (news: Event[]): Promise<SentimentData> => {
       timestamp: new Date().toISOString()
     };
   } catch (error: any) {
-    console.error('[AI Sentiment] Error analyzing sentiment:', error.message);
-    return { coin: news[0]?.coin || 'UNKNOWN', positive: 33.33, negative: 33.33, neutral: 33.33, score: 50, timestamp: new Date().toISOString() };
+    console.error('[AI Sentiment] Error analyzing sentiment:', {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data
+    });
+    return { coin: news[0]?.coin || 'UNKNOWN', positive: 0, negative: 0, neutral: 0, score: 0, timestamp: new Date().toISOString() };
   }
 };
 
@@ -219,75 +225,40 @@ export const fetchEvents = async (): Promise<Event[]> => {
     return [];
   }
 
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      console.log(`[Events] Fetching events (Attempt ${attempt}/${MAX_RETRIES})`);
-      
-      const response = await axios.get('/.netlify/functions/proxy', {
-        params: {
-          url: 'https://cryptopanic.com/api/v1/posts',
-          auth_token: apiToken,
-          public: 'true',
-          filter: 'hot',
-          currencies: Object.keys(SUPPORTED_COINS).join(',')
-        },
-        headers: {
-          'Accept': 'application/json'
-        },
-        timeout: 20000
-      });
+  try {
+    console.log('[Events] Fetching events directly');
+    const response = await axios.get('https://cryptopanic.com/api/v1/posts', {
+      params: {
+        auth_token: apiToken,
+        public: 'true',
+        filter: 'hot',
+        currencies: Object.keys(SUPPORTED_COINS).join(',')
+      },
+      headers: { 'Accept': 'application/json' },
+      timeout: 20000
+    });
 
-      if (!response.data || typeof response.data !== 'object') {
-        console.error('[Events] Invalid response format:', response.data);
-        throw new Error('Invalid API response format');
-      }
+    console.log('[Events] CryptoPanic raw response:', response.data);
 
-      if (typeof response.data === 'string' && response.data.includes('<!doctype html>')) {
-        console.error('[Events] Received HTML instead of JSON');
-        throw new Error('Invalid API response: received HTML instead of JSON');
-      }
-
-      console.log('[Events] CryptoPanic raw response:', response.data);
-
-      if (!Array.isArray(response.data.results)) {
-        console.error('[Events] Invalid response structure:', response.data);
-        return [];
-      }
-
-      return response.data.results.map((post: any) => ({
-        id: (post.id || Date.now()).toString(),
-        coin: Array.isArray(post.currencies) && post.currencies[0]?.code ? post.currencies[0].code : 'UNKNOWN',
-        date: post.published_at || new Date().toISOString(),
-        title: post.title || 'No title available',
-        description: post.text || post.title || 'No description available',
-        eventType: post.kind || 'News'
-      }));
-    } catch (error: any) {
-      console.error(`[Events] Error fetching events (Attempt ${attempt}):`, {
-        message: error.message,
-        status: error.response?.status,
-        data: error.response?.data
-      });
-
-      if (error.response?.status === 401) {
-        console.warn('[Events] Invalid CryptoPanic API token, returning empty events');
-        return [];
-      }
-
-      if ((error.response?.status === 429 || isNetworkError(error)) && attempt < MAX_RETRIES) {
-        const retryDelay = getRetryDelay(attempt) + Math.random() * 1000;
-        console.log(`[Events] Retrying in ${retryDelay}ms due to rate limit or network issue...`);
-        await delay(retryDelay);
-        continue;
-      }
-
-      if (attempt === MAX_RETRIES) {
-        console.warn('[Events] Max retries reached, returning empty events');
-        return [];
-      }
+    if (!Array.isArray(response.data.results)) {
+      console.error('[Events] Invalid response structure:', response.data);
+      return [];
     }
-  }
 
-  console.warn('[Events] Failed to fetch events after retries, returning empty events');
-  return [];
+    return response.data.results.map((post: any) => ({
+      id: (post.id || Date.now()).toString(),
+      coin: Array.isArray(post.currencies) && post.currencies[0]?.code ? post.currencies[0].code : 'UNKNOWN',
+      date: post.published_at || new Date().toISOString(),
+      title: post.title || 'No title available',
+      description: post.text || post.title || 'No description available',
+      eventType: post.kind || 'News'
+    }));
+  } catch (error: any) {
+    console.error('[Events] Error fetching events:', {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data
+    });
+    return [];
+  }
 };
