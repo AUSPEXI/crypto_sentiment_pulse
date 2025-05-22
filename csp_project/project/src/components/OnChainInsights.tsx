@@ -1,3 +1,4 @@
+// src/components/OnChainInsights.tsx
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { fetchOnChainData } from '../utils/api';
@@ -75,7 +76,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
     const { fill, x, y, width, height, value } = props;
     const color = value >= 0 ? '#22c55e' : '#ef4444';
     const barHeight = Math.abs(height);
-    const yPos = value >= 0 ? y : y + height;
+    const yPos = value >= 0 ? y - barHeight : y;
 
     return <rect x={x} y={yPos} width={width} height={barHeight} fill={color} />;
   };
@@ -95,11 +96,18 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   // Calculate chart dimensions based on number of coins
   const getChartHeight = (numCoins: number): number => {
     const baseHeight = 250;
-    const heightPerCoin = 30;
-    return Math.max(baseHeight, baseHeight + (numCoins - 5) * heightPerCoin);
+    const heightPerCoin = 40; // Increased to ensure labels fit
+    return Math.max(baseHeight, numCoins * heightPerCoin);
+  };
+
+  // Calculate symmetric Y-axis range for growth chart
+  const getGrowthAxisRange = (data: typeof activeWalletsData) => {
+    const maxAbsGrowth = Math.max(...data.map(item => Math.abs(item.growth)), 5); // Minimum range of ±5%
+    return { min: -maxAbsGrowth, max: maxAbsGrowth };
   };
 
   const chartHeight = getChartHeight(selectedCoins.length);
+  const growthRange = getGrowthAxisRange(activeWalletsData);
 
   return (
     <div className="bg-white rounded-lg shadow-md p-4">
@@ -121,21 +129,15 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={activeWalletsData}
-                  layout={selectedCoins.length > 5 ? "vertical" : "horizontal"}
+                  layout="horizontal" // Always horizontal
                   margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
-                  {selectedCoins.length > 5 ? (
-                    <>
-                      <XAxis type="number" />
-                      <YAxis dataKey="coin" type="category" width={60} />
-                    </>
-                  ) : (
-                    <>
-                      <XAxis dataKey="coin" />
-                      <YAxis />
-                    </>
-                  )}
+                  <XAxis dataKey="coin" />
+                  <YAxis
+                    domain={[growthRange.min, growthRange.max]}
+                    tickFormatter={(value) => `${value.toFixed(1)}%`}
+                  />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
                   <ReferenceLine y={0} stroke="#666" />
@@ -155,21 +157,12 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={largeTransactionsData}
-                  layout={selectedCoins.length > 5 ? "vertical" : "horizontal"}
+                  layout="horizontal" // Keep this horizontal too for consistency
                   margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
-                  {selectedCoins.length > 5 ? (
-                    <>
-                      <XAxis type="number" />
-                      <YAxis dataKey="coin" type="category" width={60} />
-                    </>
-                  ) : (
-                    <>
-                      <XAxis dataKey="coin" />
-                      <YAxis />
-                    </>
-                  )}
+                  <XAxis dataKey="coin" />
+                  <YAxis />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
                   <Bar
