@@ -1,9 +1,11 @@
+// src/components/PortfolioTracker.tsx
 import React, { useState, useEffect } from 'react';
-import { fetchSentimentData } from '../utils/api';
+import { fetchSentimentData, STATIC_COINS } from '../utils/api'; // Import STATIC_COINS
 import { PortfolioItem } from '../types';
 import { Trash2 } from 'lucide-react';
 
-const DEFAULT_COINS = ['BTC', 'ETH', 'SOL'];
+// Use all coins from STATIC_COINS
+const DEFAULT_COINS = STATIC_COINS.map(coin => coin.symbol);
 
 const PortfolioTracker: React.FC = () => {
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
@@ -19,6 +21,14 @@ const PortfolioTracker: React.FC = () => {
     const savedPortfolio = localStorage.getItem('portfolio');
     if (savedPortfolio) {
       setPortfolio(JSON.parse(savedPortfolio));
+    } else {
+      // Initialize portfolio with all coins (quantity 0)
+      const initialPortfolio = DEFAULT_COINS.map(coin => ({
+        coin,
+        quantity: 0,
+      }));
+      setPortfolio(initialPortfolio);
+      localStorage.setItem('portfolio', JSON.stringify(initialPortfolio));
     }
     
     const savedConsent = localStorage.getItem('dataConsent');
@@ -53,6 +63,7 @@ const PortfolioTracker: React.FC = () => {
         
         for (let i = 0; i < updatedPortfolio.length; i++) {
           const item = updatedPortfolio[i];
+          if (item.quantity === 0) continue; // Skip coins with zero quantity
           const sentimentData = await fetchSentimentData(item.coin);
           updatedPortfolio[i] = {
             ...item,
@@ -111,17 +122,23 @@ const PortfolioTracker: React.FC = () => {
   };
 
   const handleRemoveCoin = (coin: string) => {
-    setPortfolio(portfolio.filter(item => item.coin !== coin));
+    const updatedPortfolio = [...portfolio];
+    const index = updatedPortfolio.findIndex(item => item.coin === coin);
+    if (index >= 0) {
+      updatedPortfolio[index] = { ...updatedPortfolio[index], quantity: 0 };
+      setPortfolio(updatedPortfolio);
+    }
   };
 
   // Calculate weighted sentiment score for the entire portfolio
   const calculatePortfolioSentiment = (): number | null => {
-    if (portfolio.length === 0 || portfolio.some(item => item.sentimentScore === undefined)) {
+    const activeItems = portfolio.filter(item => item.quantity > 0);
+    if (activeItems.length === 0 || activeItems.some(item => item.sentimentScore === undefined)) {
       return null;
     }
     
-    const totalQuantity = portfolio.reduce((sum, item) => sum + item.quantity, 0);
-    const weightedScore = portfolio.reduce((sum, item) => {
+    const totalQuantity = activeItems.reduce((sum, item) => sum + item.quantity, 0);
+    const weightedScore = activeItems.reduce((sum, item) => {
       return sum + (item.quantity / totalQuantity) * (item.sentimentScore || 0);
     }, 0);
     
@@ -236,7 +253,7 @@ const PortfolioTracker: React.FC = () => {
         </div>
       )}
       
-      {portfolio.length === 0 ? (
+      {portfolio.every(item => item.quantity === 0) ? (
         <p className="text-gray-500">Your portfolio is empty. Add coins to track their sentiment.</p>
       ) : (
         <div>
@@ -284,12 +301,12 @@ const PortfolioTracker: React.FC = () => {
                       {item.quantity}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.sentimentScore !== undefined ? (
+                      {item.quantity > 0 && item.sentimentScore !== undefined ? (
                         <span className="font-medium text-blue-600">
                           {item.sentimentScore.toFixed(1)}
                         </span>
                       ) : (
-                        <span className="text-gray-400">Loading...</span>
+                        <span className="text-gray-400">{item.quantity > 0 ? 'Loading...' : '-'}</span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
