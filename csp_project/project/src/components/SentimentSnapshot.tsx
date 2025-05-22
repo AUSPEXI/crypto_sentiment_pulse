@@ -1,31 +1,25 @@
-src/components/SentimentSnapshot.tsx
+// src/components/SentimentSnapshot.tsx
 import React, { useState, useEffect } from 'react';
 import { fetchSentimentData } from '../utils/api';
-import { SentimentData } from '../types';
 import { format } from 'date-fns';
-// import { AlertTriangle } from 'lucide-react'; // Comment out
 import SentimentSpeedometer from './SentimentSpeedometer';
 
-interface SentimentSnapshotProps {
-  selectedCoins: string[];
-}
-
-const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) => {
-  const [sentimentData, setSentimentData] = useState<Record<string, SentimentData[]>>({});
-  const [errors, setErrors] = useState<Record<string, { message: string; details?: string }>>({});
-  const [loading, setLoading] = useState<boolean>(true);
+const SentimentSnapshot = ({ selectedCoins }) => {
+  const [sentimentData, setSentimentData] = useState({});
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const newErrors: Record<string, { message: string; details?: string }> = {};
+      const newErrors = {};
+      const newData = {};
 
-      const newData: Record<string, SentimentData[]> = {};
       for (const coin of selectedCoins) {
         const cached = localStorage.getItem(`sentiment_${coin}`);
         if (cached) {
           const { data, timestamp } = JSON.parse(cached);
-          if (Date.now() - timestamp < 24 * 60 * 60 * 1000) { // 24-hour cache
+          if (Date.now() - timestamp < 24 * 60 * 60 * 1000) {
             newData[coin] = [data];
             continue;
           }
@@ -35,7 +29,7 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
           const latestData = await fetchSentimentData(coin);
           newData[coin] = [latestData];
           localStorage.setItem(`sentiment_${coin}`, JSON.stringify({ data: latestData, timestamp: Date.now() }));
-        } catch (err: any) {
+        } catch (err) {
           newErrors[coin] = {
             message: err.message,
             details: JSON.stringify({
@@ -64,21 +58,6 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
       {loading && !Object.keys(sentimentData).length && (
         <p className="text-gray-500">Loading sentiment data...</p>
       )}
-
-      {/* Comment out error rendering to test lucide-react */}
-      {/* {Object.keys(errors).length > 0 && (
-        <div className="bg-red-50 text-red-700 p-4 rounded-md mb-4">
-          {Object.entries(errors).map(([coin, error]) => (
-            <div key={coin} className="flex items-center">
-              <AlertTriangle className="h-5 w-5 mr-2" />
-              <p>
-                {coin}: {error.message}
-                {error.details && <span className="block text-xs">Details: {error.details}</span>}
-              </p>
-            </div>
-          ))}
-        </div>
-      )} */}
 
       {!loading && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
