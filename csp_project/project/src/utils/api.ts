@@ -1,3 +1,4 @@
+// src/api.ts (updated)
 import axios from 'axios';
 import { SentimentData, OnChainData, Event } from '../types';
 
@@ -95,13 +96,17 @@ const STATIC_WALLET_DATA: { [key: string]: OnChainData } = {
   'PEPE': { coin: 'PEPE', activeWallets: 80000, activeWalletsGrowth: 6.0, largeTransactions: 150, timestamp: '2025-05-22T07:00:00Z' }
 };
 
-// fetchSentimentData with OpenAI integration
+// Export userPredictions for use in fetchSentimentData
+export const userPredictions: { userId: string; coin: string; prediction: 'positive' | 'negative' | 'neutral'; timestamp: string }[] = [];
+
+// fetchSentimentData with OpenAI integration and community predictions
 export const fetchSentimentData = async (coin: string): Promise<SentimentData> => {
   const coinConfig = SUPPORTED_COINS[coin];
   if (!coinConfig) throw new Error(`Unsupported coin: ${coin}`);
 
   let marketSentiment = 50;
   let aiSentiment = 50;
+  let communitySentiment = 50;
 
   // Market sentiment from static data
   const priceChange24h = STATIC_PRICE_CHANGES[coin] || 0;
@@ -141,7 +146,20 @@ export const fetchSentimentData = async (coin: string): Promise<SentimentData> =
     }
   }
 
-  const finalScore = (marketSentiment * 0.6 + aiSentiment * 0.4);
+  // Community sentiment from user predictions
+  const coinPredictions = userPredictions.filter(
+    p => p.coin === coin && new Date(p.timestamp) > new Date(Date.now() - 24 * 60 * 60 * 1000)
+  );
+  if (coinPredictions.length > 0) {
+    const positiveVotes = coinPredictions.filter(p => p.prediction === 'positive').length;
+    const negativeVotes = coinPredictions.filter(p => p.prediction === 'negative').length;
+    const totalVotes = coinPredictions.length;
+    const positiveRatio = positiveVotes / totalVotes;
+    const negativeRatio = negativeVotes / totalVotes;
+    communitySentiment = 50 + (positiveRatio * 50) - (negativeRatio * 50);
+  }
+
+  const finalScore = (marketSentiment * 0.4 + aiSentiment * 0.4 + communitySentiment * 0.2);
   return {
     coin,
     positive: Math.max(0, Math.min(100, finalScore)),
