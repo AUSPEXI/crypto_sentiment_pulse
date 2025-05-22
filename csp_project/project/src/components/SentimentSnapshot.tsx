@@ -1,8 +1,9 @@
+src/components/SentimentSnapshot.tsx
 import React, { useState, useEffect } from 'react';
 import { fetchSentimentData } from '../utils/api';
 import { SentimentData } from '../types';
 import { format } from 'date-fns';
-import { AlertTriangle } from 'lucide-react';
+// import { AlertTriangle } from 'lucide-react'; // Comment out
 import SentimentSpeedometer from './SentimentSpeedometer';
 
 interface SentimentSnapshotProps {
@@ -64,7 +65,8 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
         <p className="text-gray-500">Loading sentiment data...</p>
       )}
 
-      {Object.keys(errors).length > 0 && (
+      {/* Comment out error rendering to test lucide-react */}
+      {/* {Object.keys(errors).length > 0 && (
         <div className="bg-red-50 text-red-700 p-4 rounded-md mb-4">
           {Object.entries(errors).map(([coin, error]) => (
             <div key={coin} className="flex items-center">
@@ -76,7 +78,7 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
             </div>
           ))}
         </div>
-      )}
+      )} */}
 
       {!loading && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
