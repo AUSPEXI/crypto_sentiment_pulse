@@ -4,12 +4,13 @@
   border-radius: 8px;
   padding: 16px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  margin: 16px 0;
+  margin: 0;
   font-family: 'Montserrat', sans-serif;
+  border: 2px solid #5eead4; /* Teal border */
 }
 
 .event-alerts h2 {
-  color: #1e40af;
+  color: #0f766e; /* Teal header */
   font-size: 1.5rem;
   font-weight: 600;
   margin-bottom: 12px;
