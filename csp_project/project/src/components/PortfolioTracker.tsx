@@ -1,6 +1,6 @@
 // src/components/PortfolioTracker.tsx
 import React, { useState, useEffect } from 'react';
-import { fetchSentimentData, STATIC_COINS } from '../utils/api'; // Import STATIC_COINS
+import { fetchSentimentData, STATIC_COINS } from '../utils/api';
 import { PortfolioItem } from '../types';
 import { Trash2 } from 'lucide-react';
 
@@ -16,13 +16,11 @@ const PortfolioTracker: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showConsentPopup, setShowConsentPopup] = useState<boolean>(false);
 
-  // Load portfolio from localStorage on initial render
   useEffect(() => {
     const savedPortfolio = localStorage.getItem('portfolio');
     if (savedPortfolio) {
       setPortfolio(JSON.parse(savedPortfolio));
     } else {
-      // Initialize portfolio with all coins (quantity 0)
       const initialPortfolio = DEFAULT_COINS.map(coin => ({
         coin,
         quantity: 0,
@@ -35,22 +33,18 @@ const PortfolioTracker: React.FC = () => {
     if (savedConsent) {
       setDataConsent(JSON.parse(savedConsent));
     } else {
-      // Show consent popup on first visit
       setShowConsentPopup(true);
     }
   }, []);
 
-  // Save portfolio to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('portfolio', JSON.stringify(portfolio));
   }, [portfolio]);
 
-  // Save data consent to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('dataConsent', JSON.stringify(dataConsent));
   }, [dataConsent]);
 
-  // Update sentiment scores for portfolio items
   useEffect(() => {
     const updateSentimentScores = async () => {
       if (portfolio.length === 0) return;
@@ -63,7 +57,7 @@ const PortfolioTracker: React.FC = () => {
         
         for (let i = 0; i < updatedPortfolio.length; i++) {
           const item = updatedPortfolio[i];
-          if (item.quantity === 0) continue; // Skip coins with zero quantity
+          if (item.quantity === 0) continue;
           const sentimentData = await fetchSentimentData(item.coin);
           updatedPortfolio[i] = {
             ...item,
@@ -82,9 +76,7 @@ const PortfolioTracker: React.FC = () => {
     
     updateSentimentScores();
     
-    // Set up interval to refresh data every hour
     const intervalId = setInterval(updateSentimentScores, 60 * 60 * 1000);
-    
     return () => clearInterval(intervalId);
   }, [portfolio.length]);
 
@@ -95,11 +87,9 @@ const PortfolioTracker: React.FC = () => {
       return;
     }
     
-    // Check if coin already exists in portfolio
     const existingIndex = portfolio.findIndex(item => item.coin === newCoin);
     
     if (existingIndex >= 0) {
-      // Update existing coin
       const updatedPortfolio = [...portfolio];
       updatedPortfolio[existingIndex] = {
         ...updatedPortfolio[existingIndex],
@@ -107,7 +97,6 @@ const PortfolioTracker: React.FC = () => {
       };
       setPortfolio(updatedPortfolio);
     } else {
-      // Add new coin
       setPortfolio([
         ...portfolio,
         {
@@ -117,7 +106,6 @@ const PortfolioTracker: React.FC = () => {
       ]);
     }
     
-    // Reset form
     setNewQuantity('');
   };
 
@@ -130,7 +118,6 @@ const PortfolioTracker: React.FC = () => {
     }
   };
 
-  // Calculate weighted sentiment score for the entire portfolio
   const calculatePortfolioSentiment = (): number | null => {
     const activeItems = portfolio.filter(item => item.quantity > 0);
     if (activeItems.length === 0 || activeItems.some(item => item.sentimentScore === undefined)) {
@@ -151,7 +138,6 @@ const PortfolioTracker: React.FC = () => {
     <div className="bg-white rounded-lg shadow-md p-4">
       <h2 className="text-lg font-semibold text-blue-800 mb-4">Portfolio Tracker</h2>
       
-      {/* Consent Popup */}
       {showConsentPopup && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md">
