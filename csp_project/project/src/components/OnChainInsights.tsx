@@ -105,7 +105,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
 
   const getChartHeight = (numCoins: number): number => {
     const baseHeight = 250;
-    const heightPerCoin = 60; // Increased to fit ticker labels inside bars
+    const heightPerCoin = 60;
     return Math.max(baseHeight, numCoins * heightPerCoin);
   };
 
@@ -195,7 +195,20 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {selectedCoins.map(coin => {
               const data = onChainData[coin];
-              if (!data) return null;
+              // Ensure all required properties exist before rendering
+              if (
+                !data ||
+                data.activeWallets === undefined ||
+                data.activeWalletsGrowth === undefined ||
+                data.largeTransactions === undefined
+              ) {
+                return (
+                  <div key={coin} className="bg-gray-50 p-3 rounded-md">
+                    <h3 className="font-medium text-gray-800">{coin} On-Chain Data</h3>
+                    <p className="text-sm text-gray-600 mt-2">Data unavailable</p>
+                  </div>
+                );
+              }
               
               return (
                 <div key={coin} className="bg-gray-50 p-3 rounded-md">
