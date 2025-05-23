@@ -15,30 +15,38 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
 
   useEffect(() => {
     const fetchData = async () => {
+      console.log('Fetching on-chain data for coins:', selectedCoins);
       setLoading(true);
       setError(null);
-      
+
       try {
         const newData: Record<string, OnChainData> = {};
-        
         for (const coin of selectedCoins) {
           const data = await fetchOnChainData(coin);
-          newData[coin] = data;
+          console.log(`Data for ${coin}:`, data);
+          if (data && data.activeWallets !== undefined && data.activeWalletsGrowth !== undefined && data.largeTransactions !== undefined) {
+            newData[coin] = data;
+          } else {
+            console.warn(`Incomplete data for ${coin}, skipping`);
+          }
         }
-        
         setOnChainData(newData);
       } catch (err) {
+        console.error('Error fetching on-chain data:', err);
         setError('Failed to fetch on-chain data. Please try again later.');
-        console.error(err);
       } finally {
         setLoading(false);
       }
     };
-    
-    fetchData();
-    
-    const intervalId = setInterval(fetchData, 5 * 60 * 1000);
-    return () => clearInterval(intervalId);
+
+    if (selectedCoins.length > 0) {
+      fetchData();
+      const intervalId = setInterval(fetchData, 5 * 60 * 1000);
+      return () => clearInterval(intervalId);
+    } else {
+      console.log('No coins selected, skipping fetch');
+      setLoading(false);
+    }
   }, [selectedCoins]);
 
   const formatNumber = (num: number): string => {
@@ -52,7 +60,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
     if (active && payload && payload.length) {
       const value = payload[0].value;
       const isGrowth = payload[0].dataKey === 'growth';
-      
+
       return (
         <div className="bg-white p-3 rounded-lg shadow-md border border-gray-200">
           <p className="font-medium text-gray-900">{label}</p>
@@ -95,12 +103,12 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
 
   const activeWalletsData = Object.entries(onChainData).map(([coin, data]) => ({
     coin,
-    growth: data?.activeWalletsGrowth || 0 // Default to 0 if undefined
+    growth: data?.activeWalletsGrowth || 0
   }));
 
   const largeTransactionsData = Object.entries(onChainData).map(([coin, data]) => ({
     coin,
-    transactions: data?.largeTransactions || 0 // Default to 0 if undefined
+    transactions: data?.largeTransactions || 0
   }));
 
   const getChartHeight = (numCoins: number): number => {
@@ -114,22 +122,39 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
     return { min: -maxAbsGrowth, max: maxAbsGrowth };
   };
 
+  console.log('onChainData:', onChainData);
+  console.log('activeWalletsData:', activeWalletsData);
+  console.log('largeTransactionsData:', largeTransactionsData);
+
   const chartHeight = getChartHeight(selectedCoins.length);
   const growthRange = getGrowthAxisRange(activeWalletsData);
+
+  if (!selectedCoins.length) {
+    return (
+      <div className="bg-white rounded-lg shadow-md p-4">
+        <h2 className="text-lg font-semibold text-blue-800 mb-4">On-Chain Insights</h2>
+        <p className="text-gray-500">Please select at least one coin to view on-chain insights.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg shadow-md p-4">
       <h2 className="text-lg font-semibold text-blue-800 mb-4">On-Chain Insights</h2>
-      
+
       {loading && <p className="text-gray-500">Loading on-chain data...</p>}
-      
+
       {error && (
         <div className="bg-red-100 text-red-700 p-3 rounded-md mb-4">
           {error}
         </div>
       )}
-      
-      {!loading && !error && (
+
+      {!loading && !error && Object.keys(onChainData).length === 0 && (
+        <p className="text-gray-500">No on-chain data available for the selected coins.</p>
+      )}
+
+      {!loading && !error && Object.keys(onChainData).length > 0 && (
         <div className="space-y-6">
           <div>
             <h3 className="text-md font-medium text-gray-700 mb-2">Active Wallet Growth</h3>
@@ -163,7 +188,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
               </ResponsiveContainer>
             </div>
           </div>
-          
+
           <div>
             <h3 className="text-md font-medium text-gray-700 mb-2">Large Transactions</h3>
             <div style={{ height: `${chartHeight}px` }}>
@@ -191,11 +216,10 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
               </ResponsiveContainer>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {selectedCoins.map(coin => {
               const data = onChainData[coin];
-              // Ensure all required properties exist before rendering
               if (
                 !data ||
                 data.activeWallets === undefined ||
@@ -209,7 +233,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                   </div>
                 );
               }
-              
+
               return (
                 <div key={coin} className="bg-gray-50 p-3 rounded-md">
                   <h3 className="font-medium text-gray-800">{coin} On-Chain Data</h3>
