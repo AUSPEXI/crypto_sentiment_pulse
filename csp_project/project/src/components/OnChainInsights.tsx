@@ -95,12 +95,12 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
 
   const activeWalletsData = Object.entries(onChainData).map(([coin, data]) => ({
     coin,
-    growth: data.activeWalletsGrowth
+    growth: data?.activeWalletsGrowth || 0 // Default to 0 if undefined
   }));
 
   const largeTransactionsData = Object.entries(onChainData).map(([coin, data]) => ({
     coin,
-    transactions: data.largeTransactions
+    transactions: data?.largeTransactions || 0 // Default to 0 if undefined
   }));
 
   const getChartHeight = (numCoins: number): number => {
