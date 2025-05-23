@@ -36,11 +36,11 @@ function App() {
           <div id="predictions" className="xl:col-span-1">
             <SentimentPrediction />
           </div>
-          <div id="events" className="xl:col-span-1">
-            <EventAlerts />
-          </div>
           <div id="portfolio" className="xl:col-span-2">
             <PortfolioTracker />
+          </div>
+          <div id="events" className="xl:col-span-1">
+            <EventAlerts />
           </div>
           <div id="tip-jar" className="xl:col-span-1">
             <TipJar />
