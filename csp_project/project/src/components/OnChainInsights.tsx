@@ -41,7 +41,6 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
     return () => clearInterval(intervalId);
   }, [selectedCoins]);
 
-  // Format large numbers with K/M/B suffix
   const formatNumber = (num: number): string => {
     if (num >= 1e9) return `${(num / 1e9).toFixed(1)}B`;
     if (num >= 1e6) return `${(num / 1e6).toFixed(1)}M`;
@@ -49,7 +48,6 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
     return num.toString();
   };
 
-  // Custom tooltip component
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const value = payload[0].value;
@@ -71,20 +69,32 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
     return null;
   };
 
-  // Custom bar component for growth chart
   const GrowthBar = (props: any) => {
-    const { fill, x, y, width, height, value } = props;
+    const { x, y, width, height, value, payload } = props;
     const color = value >= 0 ? '#22c55e' : '#ef4444';
     const barHeight = Math.abs(height);
     const yPos = value >= 0 ? y - barHeight : y;
+    const coin = payload?.coin || '';
 
-    return <rect x={x} y={yPos} width={width} height={barHeight} fill={color} />;
+    return (
+      <g>
+        <rect x={x} y={yPos} width={width} height={barHeight} fill={color} />
+        <text
+          x={x + width / 2}
+          y={yPos + (value >= 0 ? -5 : barHeight + 15)}
+          textAnchor="middle"
+          fill="#333"
+          fontSize={12}
+          fontWeight="bold"
+        >
+          {coin}
+        </text>
+      </g>
+    );
   };
 
-  // Prepare data for the charts
   const activeWalletsData = Object.entries(onChainData).map(([coin, data]) => ({
     coin,
-    activeWallets: data.activeWallets,
     growth: data.activeWalletsGrowth
   }));
 
@@ -93,16 +103,14 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
     transactions: data.largeTransactions
   }));
 
-  // Calculate chart dimensions based on number of coins
   const getChartHeight = (numCoins: number): number => {
     const baseHeight = 250;
-    const heightPerCoin = 40; // Increased to ensure labels fit
+    const heightPerCoin = 60; // Increased to fit ticker labels inside bars
     return Math.max(baseHeight, numCoins * heightPerCoin);
   };
 
-  // Calculate symmetric Y-axis range for growth chart
   const getGrowthAxisRange = (data: typeof activeWalletsData) => {
-    const maxAbsGrowth = Math.max(...data.map(item => Math.abs(item.growth)), 5); // Minimum range of ±5%
+    const maxAbsGrowth = Math.max(...data.map(item => Math.abs(item.growth)), 5);
     return { min: -maxAbsGrowth, max: maxAbsGrowth };
   };
 
@@ -129,18 +137,23 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={activeWalletsData}
-                  layout="horizontal" // Always horizontal
-                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                  layout="vertical"
+                  margin={{ top: 20, right: 30, left: 100, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="coin" />
-                  <YAxis
-                    domain={[growthRange.min, growthRange.max]}
+                  <XAxis
+                    type="number"
+                    domain={[-growthRange.max, growthRange.max]}
                     tickFormatter={(value) => `${value.toFixed(1)}%`}
+                  />
+                  <YAxis
+                    dataKey="coin"
+                    type="category"
+                    width={80}
                   />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
-                  <ReferenceLine y={0} stroke="#666" />
+                  <ReferenceLine x={0} stroke="#666" />
                   <Bar
                     dataKey="growth"
                     name="Growth (%)"
@@ -157,12 +170,16 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={largeTransactionsData}
-                  layout="horizontal" // Keep this horizontal too for consistency
-                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                  layout="vertical"
+                  margin={{ top: 20, right: 30, left: 100, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="coin" />
-                  <YAxis />
+                  <XAxis type="number" />
+                  <YAxis
+                    dataKey="coin"
+                    type="category"
+                    width={80}
+                  />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
                   <Bar
