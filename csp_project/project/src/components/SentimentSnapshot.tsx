@@ -1,89 +1,102 @@
 // src/components/SentimentSnapshot.tsx
 import React, { useState, useEffect } from 'react';
 import { fetchSentimentData } from '../utils/api';
-import { format } from 'date-fns';
-import SentimentSpeedometer from './SentimentSpeedometer';
+import { SentimentData } from '../types';
 
-const SentimentSnapshot = ({ selectedCoins }) => {
-  const [sentimentData, setSentimentData] = useState({});
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(true);
+interface SentimentSnapshotProps {
+  selectedCoins: string[];
+}
+
+const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) => {
+  const [sentimentData, setSentimentData] = useState<Record<string, SentimentData>>({});
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
+      console.log('Fetching sentiment data for coins:', selectedCoins);
       setLoading(true);
-      const newErrors = {};
-      const newData = {};
+      setError(null);
 
-      for (const coin of selectedCoins) {
-        const cached = localStorage.getItem(`sentiment_${coin}`);
-        if (cached) {
-          const { data, timestamp } = JSON.parse(cached);
-          if (Date.now() - timestamp < 24 * 60 * 60 * 1000) {
-            newData[coin] = [data];
-            continue;
+      try {
+        const newData: Record<string, SentimentData> = {};
+        for (const coin of selectedCoins) {
+          const data = await fetchSentimentData(coin);
+          console.log(`Sentiment data for ${coin}:`, data);
+          if (data && data.score !== undefined) {
+            newData[coin] = data;
+          } else {
+            console.warn(`Incomplete sentiment data for ${coin}, skipping`);
           }
         }
-
-        try {
-          const latestData = await fetchSentimentData(coin);
-          newData[coin] = [latestData];
-          localStorage.setItem(`sentiment_${coin}`, JSON.stringify({ data: latestData, timestamp: Date.now() }));
-        } catch (err) {
-          newErrors[coin] = {
-            message: err.message,
-            details: JSON.stringify({
-              status: err.response?.status,
-              data: err.response?.data?.substring(0, 100)
-            })
-          };
-          console.error(`Error fetching data for ${coin}:`, err);
-        }
+        setSentimentData(newData);
+      } catch (err) {
+        console.error('Error fetching sentiment data:', err);
+        setError('Failed to fetch sentiment data. Please try again later.');
+      } finally {
+        setLoading(false);
       }
-
-      setSentimentData(newData);
-      setErrors(newErrors);
-      setLoading(false);
     };
 
-    fetchData();
-    const intervalId = setInterval(fetchData, 5 * 60 * 1000);
-    return () => clearInterval(intervalId);
+    if (selectedCoins.length > 0) {
+      fetchData();
+      const intervalId = setInterval(fetchData, 60 * 60 * 1000); // Update hourly
+      return () => clearInterval(intervalId);
+    } else {
+      console.log('No coins selected, skipping sentiment fetch');
+      setLoading(false);
+    }
   }, [selectedCoins]);
+
+  console.log('sentimentData:', sentimentData);
+
+  if (!selectedCoins.length) {
+    return (
+      <div className="bg-white rounded-lg shadow-md p-4">
+        <h2 className="text-lg font-semibold text-blue-800 mb-4">Sentiment Snapshot</h2>
+        <p className="text-gray-500">Please select at least one coin to view sentiment data.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg shadow-md p-4">
       <h2 className="text-lg font-semibold text-blue-800 mb-4">Sentiment Snapshot</h2>
 
-      {loading && !Object.keys(sentimentData).length && (
-        <p className="text-gray-500">Loading sentiment data...</p>
+      {loading && <p className="text-gray-500">Loading sentiment data...</p>}
+
+      {error && (
+        <div className="bg-red-100 text-red-700 p-3 rounded-md mb-4">
+          {error}
+        </div>
       )}
 
-      {!loading && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {!loading && !error && Object.keys(sentimentData).length === 0 && (
+        <p className="text-gray-500">No sentiment data available for the selected coins.</p>
+      )}
+
+      {!loading && !error && Object.keys(sentimentData).length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {selectedCoins.map(coin => {
-            const latestData = sentimentData[coin]?.[0];
-            if (!latestData) return null;
+            const data = sentimentData[coin];
+            if (!data || data.score === undefined) {
+              return (
+                <div key={coin} className="bg-gray-50 p-3 rounded-md">
+                  <h3 className="font-medium text-gray-800">{coin} Sentiment</h3>
+                  <p className="text-sm text-gray-600 mt-2">Data unavailable</p>
+                </div>
+              );
+            }
 
             return (
-              <div key={coin} className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="text-xl font-medium text-gray-800 mb-4 text-center">{coin}</h3>
-                <SentimentSpeedometer value={latestData.score} />
-                <div className="mt-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Positive:</span>
-                    <span className="font-medium text-green-600">{latestData.positive}%</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Negative:</span>
-                    <span className="font-medium text-red-600">{latestData.negative}%</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Neutral:</span>
-                    <span className="font-medium text-gray-600">{latestData.neutral}%</span>
-                  </div>
-                  <div className="text-xs text-gray-500 text-center mt-2">
-                    Last updated: {format(new Date(latestData.timestamp), 'MMM dd, HH:mm')}
+              <div key={coin} className="bg-gray-50 p-3 rounded-md">
+                <h3 className="font-medium text-gray-800">{coin} Sentiment</h3>
+                <div className="mt-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Score:</span>
+                    <span className={`text-sm font-medium ${data.score >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {data.score.toFixed(1)}
+                    </span>
                   </div>
                 </div>
               </div>
