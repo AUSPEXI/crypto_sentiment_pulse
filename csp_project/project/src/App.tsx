@@ -1,3 +1,4 @@
+// src/App.tsx
 import React, { useState } from 'react';
 import Header from './components/Header';
 import About from './components/About';
@@ -9,6 +10,7 @@ import TipJar from './components/TipJar';
 import DatasetInfo from './components/DatasetInfo';
 import UserGuide from './components/UserGuide';
 import CoinSelect from './components/CoinSelect';
+import SentimentPrediction from './components/SentimentPrediction';
 
 function App() {
   const [selectedCoins, setSelectedCoins] = useState<string[]>(['BTC', 'ETH']);
@@ -30,6 +32,9 @@ function App() {
           </div>
           <div className="xl:col-span-1">
             <OnChainInsights selectedCoins={selectedCoins} />
+          </div>
+          <div id="predictions" className="xl:col-span-1">
+            <SentimentPrediction />
           </div>
           <div id="events" className="xl:col-span-1">
             <EventAlerts />
