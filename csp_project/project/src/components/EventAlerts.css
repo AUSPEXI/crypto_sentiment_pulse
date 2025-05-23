@@ -1,0 +1,22 @@
+/* src/components/EventAlerts.css */
+.event-alerts {
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin: 16px 0;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.event-alerts h2 {
+  color: #1e40af;
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.event-alerts iframe {
+  border: none;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
