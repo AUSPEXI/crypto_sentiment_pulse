@@ -1,67 +1,106 @@
-// src/components/CoinSelect.tsx
-import React from 'react';
-import { Listbox } from '@headlessui/react';
-import { ChevronDown, Check } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { AVAILABLE_COINS } from '../types';
+// src/components/SentimentSnapshot.tsx
+import React, { useState, useEffect } from 'react';
+import { fetchSentimentData } from '../utils/api';
+import { SentimentData } from '../types';
+import SentimentSpeedometer from './SentimentSpeedometer';
 
-interface CoinSelectProps {
+interface SentimentSnapshotProps {
   selectedCoins: string[];
-  onChange: (coins: string[]) => void;
 }
 
-const CoinSelect: React.FC<CoinSelectProps> = ({ selectedCoins, onChange }) => {
-  return (
-    <div className="relative w-full">
-      <Listbox value={selectedCoins} onChange={onChange} multiple>
-        <Listbox.Button className="relative w-full bg-white rounded-lg py-2 pl-3 pr-10 text-left shadow-md">
-          <span className="block truncate">
-            {selectedCoins.length === 0 
-              ? 'Select coins...' 
-              : `${selectedCoins.length} coin${selectedCoins.length > 1 ? 's' : ''} selected`}
-          </span>
-          <span className="absolute inset-y-0 right-0 flex items-center pr-2">
-            <ChevronDown className="h-5 w-5 text-gray-400" aria-hidden="true" />
-          </span>
-        </Listbox.Button>
+const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) => {
+  const [sentimentData, setSentimentData] = useState<Record<string, SentimentData>>({});
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-        <AnimatePresence>
-          <Listbox.Options 
-            as={motion.ul}
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
-          >
-            {AVAILABLE_COINS.map((coin) => (
-              <Listbox.Option
-                key={coin.id}
-                value={coin.symbol}
-                className={({ active, selected }) =>
-                  `relative cursor-pointer select-none py-2 pl-10 pr-4 ${
-                    active ? 'bg-blue-100' : ''
-                  } ${selected ? 'bg-blue-50' : ''}`
-                }
-              >
-                {({ selected }) => (
-                  <>
-                    <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
-                      {coin.name} ({coin.symbol})
-                    </span>
-                    {selected && (
-                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-blue-600">
-                        <Check className="h-4 w-4" />
-                      </span>
-                    )}
-                  </>
-                )}
-              </Listbox.Option>
-            ))}
-          </Listbox.Options>
-        </AnimatePresence>
-      </Listbox>
+  const defaultCoins = ['BTC', 'ETH', 'BNB', 'SOL', 'USDC', 'DOGE', 'ADA', 'TRX', 'AVAX'];
+  const coinsToFetch = selectedCoins.length > 0 ? selectedCoins : defaultCoins;
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const newData: Record<string, SentimentData> = {};
+        for (const coin of coinsToFetch) {
+          const data = await fetchSentimentData(coin);
+          if (data && data.score !== undefined) newData[coin] = data;
+          else console.warn(`Incomplete sentiment data for ${coin}, skipping`);
+        }
+        setSentimentData(newData);
+      } catch (err) {
+        console.error('Error fetching sentiment data:', err);
+        setError('Failed to fetch sentiment data. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+    const intervalId = setInterval(fetchData, 60 * 60 * 1000);
+    return () => clearInterval(intervalId);
+  }, [coinsToFetch]);
+
+  const rows = Math.ceil(coinsToFetch.length / 3);
+  const containerHeight = rows * 200;
+
+  if (selectedCoins.length === 0 && !loading && !error && Object.keys(sentimentData).length === 0) {
+    return (
+      <div className="bg-white rounded-lg shadow-md p-4">
+        <h2 className="text-lg font-semibold text-blue-800 mb-4">Sentiment Snapshot</h2>
+        <p className="text-gray-500">Loading default coin data...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow-md p-4">
+      <h2 className="text-lg font-semibold text-blue-800 mb-4">Sentiment Snapshot</h2>
+      {loading && <p className="text-gray-500">Loading sentiment data...</p>}
+      {error && <div className="bg-red-100 text-red-700 p-3 rounded-md mb-4">{error}</div>}
+      {!loading && !error && Object.keys(sentimentData).length === 0 && (
+        <p className="text-gray-500">No sentiment data available for the selected coins.</p>
+      )}
+      {!loading && !error && Object.keys(sentimentData).length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" style={{ height: `${containerHeight}px` }}>
+          {coinsToFetch.map(coin => {
+            const data = sentimentData[coin];
+            if (!data || data.score === undefined) {
+              return (
+                <div key={coin} className="bg-gray-50 p-3 rounded-md h-64 flex items-center justify-center">
+                  <p className="text-sm text-gray-600">Data unavailable</p>
+                </div>
+              );
+            }
+            const speedometerValue = ((data.score + 10) / 20) * 100;
+            return (
+              <div key={coin} className="bg-gray-50 p-3 rounded-md flex flex-col items-center justify-center h-64">
+                <h3 className="font-medium text-gray-800 mb-2 text-center">{coin}</h3>
+                <SentimentSpeedometer value={speedometerValue} size={180} />
+                <div className="mt-2 text-sm text-gray-600 text-center">
+                  <div className="flex justify-between">
+                    <span>Positive:</span>
+                    <span className="text-green-600">{((speedometerValue > 50 ? (speedometerValue - 50) * 2 : 0).toFixed(1))}%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Negative:</span>
+                    <span className="text-red-600">{(speedometerValue < 50 ? (50 - speedometerValue) * 2 : 0).toFixed(1)}%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Neutral:</span>
+                    <span>{(Math.abs(50 - speedometerValue) === 50 ? 100 : 0).toFixed(1)}%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Last updated:</span>
+                    <span>{new Date(data.timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
 
-export default CoinSelect;
+export default SentimentSnapshot;
