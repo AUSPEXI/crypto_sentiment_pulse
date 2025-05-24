@@ -1,3 +1,4 @@
+// src/components/Navigation.tsx
 import React from 'react';
 import { Activity, BarChart2, Calendar, Wallet, Heart, Database } from 'lucide-react';
 
