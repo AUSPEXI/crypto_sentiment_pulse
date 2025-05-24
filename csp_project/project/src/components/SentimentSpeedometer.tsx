@@ -8,7 +8,7 @@ interface SentimentSpeedometerProps {
   timestamp?: string;
 }
 
-const SentimentSpeedometer: React.FC<SentimentSpeedometerProps> = ({ value, size = 200, timestamp }) => {
+const SentimentSpeedometer: React.FC<SentimentSpeedometerProps> = ({ value, size = 150, timestamp }) => {
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
@@ -58,9 +58,9 @@ const SentimentSpeedometer: React.FC<SentimentSpeedometerProps> = ({ value, size
     // Add value text inside the arc
     svg.append('text')
       .attr('x', center)
-      .attr('y', center + 10) // Adjusted to fit inside the arc
+      .attr('y', center + 10)
       .attr('text-anchor', 'middle')
-      .style('font-size', '28px') // Slightly larger for visibility
+      .style('font-size', '28px')
       .style('font-weight', 'bold')
       .style('fill', colorScale(value))
       .text(Math.round(value));
@@ -68,7 +68,7 @@ const SentimentSpeedometer: React.FC<SentimentSpeedometerProps> = ({ value, size
     // Add label inside the arc
     svg.append('text')
       .attr('x', center)
-      .attr('y', center - 20) // Position above the score
+      .attr('y', center - 20)
       .attr('text-anchor', 'middle')
       .style('font-size', '12px')
       .style('fill', '#6b7280')
