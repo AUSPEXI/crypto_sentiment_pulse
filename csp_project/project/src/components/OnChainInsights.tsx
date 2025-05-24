@@ -11,7 +11,7 @@ interface OnChainInsightsProps {
 const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   const [onChainData, setOnChainData] = useState<Record<string, OnChainData>>({});
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = state<string | null>(null);
+  const [error, setError] = useState<string | null>(null); // Fixed: Changed 'state' to 'useState'
 
   useEffect(() => {
     const fetchData = async () => {
