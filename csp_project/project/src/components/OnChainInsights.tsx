@@ -107,12 +107,23 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   };
 
   const getGrowthAxisRange = (data: typeof activeWalletsData) => {
-    const maxAbsGrowth = Math.max(...data.map(item => Math.abs(item.growth)), 5);
-    return { min: -maxAbsGrowth, max: maxAbsGrowth };
+    const values = data.map(item => item.growth);
+    const minValue = Math.min(...values, -5);
+    const maxValue = Math.max(...values, 5);
+    const padding = (maxValue - minValue) * 0.1; // Add 10% padding
+    return { min: minValue - padding, max: maxValue + padding };
+  };
+
+  const getTransactionsAxisRange = (data: typeof largeTransactionsData) => {
+    const values = data.map(item => item.transactions);
+    const maxValue = Math.max(...values, 1);
+    const padding = maxValue * 0.1; // Add 10% padding
+    return [0, maxValue + padding];
   };
 
   const chartHeight = getChartHeight(selectedCoins.length);
   const growthRange = getGrowthAxisRange(activeWalletsData);
+  const transactionsRange = getTransactionsAxisRange(largeTransactionsData);
 
   if (!selectedCoins.length) {
     return (
@@ -124,7 +135,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-4">
+    <div className="bg-white rounded-lg shadow-md p-4" style={{ minHeight: '600px' }}> {/* Match SentimentSnapshot height */}
       <h2 className="text-lg font-semibold text-blue-800 mb-4">On-Chain Insights</h2>
 
       {loading && <p className="text-gray-500">Loading on-chain data...</p>}
@@ -153,7 +164,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
                     type="number"
-                    domain={[-growthRange.max, growthRange.max]}
+                    domain={[growthRange.min, growthRange.max]}
                     tickFormatter={(value) => `${value.toFixed(1)}%`}
                   />
                   <YAxis
@@ -185,7 +196,11 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                   margin={{ top: 20, right: 30, left: 100, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
+                  <XAxis
+                    type="number"
+                    domain={transactionsRange}
+                    tickFormatter={formatNumber}
+                  />
                   <YAxis
                     dataKey="coin"
                     type="category"
