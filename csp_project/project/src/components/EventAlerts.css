@@ -16,6 +16,11 @@
   margin-bottom: 12px;
 }
 
+.event-alerts .iframe-container {
+  height: 400px; /* Fixed height to match iframe */
+  overflow: hidden; /* Prevent overflow issues */
+}
+
 .event-alerts iframe {
   border: none;
   border-radius: 4px;
