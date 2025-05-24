@@ -75,14 +75,11 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
     const domainRange = domainMax - domainMin;
     const centerX = x + (width * (0 - domainMin)) / domainRange; // Map 0% to the chart's X-axis
 
-    // Calculate the pixel position of the value
-    const valuePosition = x + (width * (value - domainMin)) / domainRange;
+    // Calculate the bar width based on the absolute value of the percentage relative to the domain
+    const barWidth = (Math.abs(value) / domainRange) * width;
 
-    // Calculate bar width as the distance from 0% (centerX) to the value
-    const barWidth = Math.abs(centerX - valuePosition);
-
-    // Ensure bars always start at 0% (centerX) and extend to their value
-    const xPos = value >= 0 ? centerX : centerX - barWidth; // Start at 0%, extend right for positive, left for negative
+    // Start all bars at 0% (centerX) and extend to the value
+    const xPos = value >= 0 ? centerX : centerX - barWidth; // Extend right for positive, left for negative
 
     // Ensure a minimum width for visibility
     const minWidth = Math.max(1, barWidth);
