@@ -70,7 +70,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   const GrowthBar = (props: any) => {
     const { x, y, width, height, value } = props;
     const color = value >= 0 ? '#22c55e' : '#ef4444';
-    const barWidth = Math.abs(width * (value / 100)); // Normalize width based on percentage
+    const barWidth = Math.abs(width * (value / 100));
     const xPos = value >= 0 ? x : x - barWidth;
     return <rect x={xPos} y={y} width={barWidth} height={height} fill={color} />;
   };
@@ -93,11 +93,15 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
 
   const getGrowthAxisRange = (data: typeof activeWalletsData) => {
     const values = data.map(item => item.growth).filter(v => v !== 0);
-    if (values.length === 0) return { min: -5, max: 5 };
-    const minValue = Math.min(...values, -5); // Ensure minimum is at least -5
-    const maxValue = Math.max(...values, 5);  // Ensure maximum is at least 5
-    const padding = Math.max(Math.abs(minValue), Math.abs(maxValue)) * 0.2;
-    return { min: minValue - padding, max: maxValue + padding };
+    if (values.length === 0) return { min: -1, max: 1 }; // Default to a smaller range if no data
+    const minValue = Math.min(...values);
+    const maxValue = Math.max(...values);
+    const maxAbsValue = Math.max(Math.abs(minValue), Math.abs(maxValue));
+    const padding = maxAbsValue * 0.1; // Reduced padding to 10% of the max absolute value
+    // Ensure the range is at least ±1% to avoid overly tiny scales
+    const adjustedMin = Math.min(minValue - padding, -1);
+    const adjustedMax = Math.max(maxValue + padding, 1);
+    return { min: adjustedMin, max: adjustedMax };
   };
 
   const getTransactionsAxisRange = (data: typeof largeTransactionsData) => {
@@ -138,7 +142,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                 <BarChart
                   data={activeWalletsData}
                   layout="vertical"
-                  margin={{ top: 10, right: 40, left: 80, bottom: 10 }} // Increased right margin for labels
+                  margin={{ top: 10, right: 40, left: 80, bottom: 10 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
@@ -158,7 +162,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                     dataKey="growth"
                     name="Growth (%)"
                     shape={<GrowthBar />}
-                    barSize={20}
+                    barSize={30} // Increased bar size for better visibility
                   />
                 </BarChart>
               </ResponsiveContainer>
