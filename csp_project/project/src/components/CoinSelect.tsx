@@ -1,3 +1,4 @@
+// src/components/CoinSelect.tsx
 import React from 'react';
 import { Listbox } from '@headlessui/react';
 import { ChevronDown, Check } from 'lucide-react';
