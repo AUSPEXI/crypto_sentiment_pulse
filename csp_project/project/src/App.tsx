@@ -20,7 +20,7 @@ const App: React.FC = () => {
           <div className="mb-6">
             <CoinSelect selectedCoins={selectedCoins} onChange={setSelectedCoins} />
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-[2fr,1fr] gap-6">
             <div className="space-y-6">
               <SentimentSnapshot selectedCoins={selectedCoins} />
               <EventAlerts />
