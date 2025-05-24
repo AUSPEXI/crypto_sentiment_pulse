@@ -19,7 +19,6 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
       console.log('Fetching on-chain data for coins:', selectedCoins);
       setLoading(true);
       setError(null);
-
       try {
         const newData: Record<string, OnChainData> = {};
         for (const coin of selectedCoins) {
@@ -39,7 +38,6 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
         setLoading(false);
       }
     };
-
     if (selectedCoins.length > 0) {
       fetchData();
       const intervalId = setInterval(fetchData, 5 * 60 * 1000);
@@ -116,7 +114,6 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   const chartHeight = getChartHeight(selectedCoins.length);
   const growthRange = getGrowthAxisRange(activeWalletsData);
   const transactionsRange = getTransactionsAxisRange(largeTransactionsData);
-
   const rows = Math.ceil(selectedCoins.length / 3);
   const containerHeight = rows * 200;
 
@@ -185,20 +182,9 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                 <div key={coin} className="bg-gray-50 p-3 rounded-md">
                   <h3 className="font-medium text-gray-800">{coin} On-Chain Data</h3>
                   <div className="mt-2 space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Active Wallets:</span>
-                      <span className="text-sm font-medium text-blue-600">{formatNumber(data.activeWallets)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Growth:</span>
-                      <span className={`text-sm font-medium ${data.activeWalletsGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {data.activeWalletsGrowth >= 0 ? '+' : ''}{data.activeWalletsGrowth.toFixed(2)}%
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Large Transactions:</span>
-                      <span className="text-sm font-medium text-purple-600">{formatNumber(data.largeTransactions)}</span>
-                    </div>
+                    <div className="flex justify-between"><span className="text-sm text-gray-600">Active Wallets:</span><span className="text-sm font-medium text-blue-600">{formatNumber(data.activeWallets)}</span></div>
+                    <div className="flex justify-between"><span className="text-sm text-gray-600">Growth:</span><span className={`text-sm font-medium ${data.activeWalletsGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>{data.activeWalletsGrowth >= 0 ? '+' : ''}{data.activeWalletsGrowth.toFixed(2)}%</span></div>
+                    <div className="flex justify-between"><span className="text-sm text-gray-600">Large Transactions:</span><span className="text-sm font-medium text-purple-600">{formatNumber(data.largeTransactions)}</span></div>
                   </div>
                 </div>
               );
