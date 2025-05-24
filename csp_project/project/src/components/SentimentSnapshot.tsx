@@ -47,8 +47,6 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
     return () => clearInterval(intervalId);
   }, [coinsToFetch]);
 
-  console.log('sentimentData:', sentimentData);
-
   if (selectedCoins.length === 0 && !loading && !error && Object.keys(sentimentData).length === 0) {
     return (
       <div className="bg-white rounded-lg shadow-md p-4">
@@ -75,7 +73,7 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
       )}
 
       {!loading && !error && Object.keys(sentimentData).length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" style={{ minHeight: '600px' }}> {/* Fixed height for alignment */}
           {coinsToFetch.map(coin => {
             const data = sentimentData[coin];
             if (!data || data.score === undefined) {
@@ -90,14 +88,14 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
             const speedometerValue = ((data.score + 10) / 20) * 100;
 
             return (
-              <div key={coin} className="bg-gray-50 p-3 rounded-md">
-                <h3 className="font-medium text-gray-800">{coin}</h3>
+              <div key={coin} className="bg-gray-50 p-3 rounded-md flex flex-col items-center">
+                <h3 className="font-medium text-gray-800 mb-2">{coin}</h3>
                 <SentimentSpeedometer
                   value={speedometerValue}
                   timestamp={data.timestamp}
                   size={150}
                 />
-                <div className="mt-2 text-sm text-gray-600">
+                <div className="mt-2 text-sm text-gray-600 text-center">
                   <div className="flex justify-between">
                     <span>Positive:</span>
                     <span>{((speedometerValue > 50 ? (speedometerValue - 50) * 2 : 0).toFixed(2))}%</span>
