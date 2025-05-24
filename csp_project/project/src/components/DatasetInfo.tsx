@@ -1,3 +1,4 @@
+// src/components/DatasetInfo.tsx
 import React from 'react';
 import { Database, ExternalLink } from 'lucide-react';
 
