@@ -1,3 +1,14 @@
+// src/types/index.ts
+export interface SentimentData {
+  coin: string;
+  positive: number; // Optional, for display
+  negative: number; // Optional, for display
+  neutral: number; // Optional, for display
+  score: number;   // -10 to 10
+  socialScore?: number; // -10 to 10, optional
+  timestamp: string;
+}
+
 export interface SentimentData {
   coin: string;
   positive: number;
