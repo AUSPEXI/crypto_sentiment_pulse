@@ -9,7 +9,6 @@ interface SentimentSnapshotProps {
 }
 
 const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) => {
-  console.log('SentimentSnapshot updated version running');
   const [sentimentData, setSentimentData] = useState<Record<string, SentimentData>>({});
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -19,14 +18,12 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
 
   useEffect(() => {
     const fetchData = async () => {
-      console.log('Fetching sentiment data for coins:', coinsToFetch);
       setLoading(true);
       setError(null);
       try {
         const newData: Record<string, SentimentData> = {};
         for (const coin of coinsToFetch) {
           const data = await fetchSentimentData(coin);
-          console.log(`Sentiment data for ${coin}:`, data);
           if (data && data.score !== undefined) newData[coin] = data;
           else console.warn(`Incomplete sentiment data for ${coin}, skipping`);
         }
@@ -43,8 +40,14 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
     return () => clearInterval(intervalId);
   }, [coinsToFetch]);
 
-  const rows = Math.ceil(coinsToFetch.length / 3);
-  const containerHeight = rows * 200;
+  if (selectedCoins.length === 0 && !loading && !error && Object.keys(sentimentData).length === 0) {
+    return (
+      <div className="bg-white rounded-lg shadow-md p-4">
+        <h2 className="text-lg font-semibold text-blue-800 mb-4">Sentiment Snapshot</h2>
+        <p className="text-gray-500">Loading default coin data...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg shadow-md p-4">
@@ -55,7 +58,7 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
         <p className="text-gray-500">No sentiment data available for the selected coins.</p>
       )}
       {!loading && !error && Object.keys(sentimentData).length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" style={{ height: `${containerHeight}px` }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {coinsToFetch.map(coin => {
             const data = sentimentData[coin];
             if (!data || data.score === undefined) {
@@ -71,11 +74,23 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
               <div key={coin} className="bg-gray-50 p-3 rounded-md flex flex-col items-center">
                 <h3 className="font-medium text-gray-800 mb-2">{coin}</h3>
                 <SentimentSpeedometer value={speedometerValue} timestamp={data.timestamp} size={150} />
-                <div className="mt-2 text-sm text-gray-600 text-center w-full">
-                  <div className="flex justify-between"><span>Positive:</span><span>{((speedometerValue > 50 ? (speedometerValue - 50) * 2 : 0).toFixed(2))}%</span></div>
-                  <div className="flex justify-between"><span>Negative:</span><span>{(speedometerValue < 50 ? (50 - speedometerValue) * 2 : 0).toFixed(2)}%</span></div>
-                  <div className="flex justify-between"><span>Neutral:</span><span>{(Math.abs(50 - speedometerValue) === 50 ? 100 : 0).toFixed(2)}%</span></div>
-                  <div className="flex justify-between"><span>Last updated:</span><span>{new Date(data.timestamp).toLocaleString()}</span></div>
+                <div className="mt-2 text-sm text-gray-600 text-center">
+                  <div className="flex justify-between w-full">
+                    <span>Positive:</span>
+                    <span>{((speedometerValue > 50 ? (speedometerValue - 50) * 2 : 0).toFixed(2))}%</span>
+                  </div>
+                  <div className="flex justify-between w-full">
+                    <span>Negative:</span>
+                    <span>{(speedometerValue < 50 ? (50 - speedometerValue) * 2 : 0).toFixed(2)}%</span>
+                  </div>
+                  <div className="flex justify-between w-full">
+                    <span>Neutral:</span>
+                    <span>{(Math.abs(50 - speedometerValue) === 50 ? 100 : 0).toFixed(2)}%</span>
+                  </div>
+                  <div className="flex justify-between w-full">
+                    <span>Last updated:</span>
+                    <span>{new Date(data.timestamp).toLocaleString()}</span>
+                  </div>
                 </div>
               </div>
             );
