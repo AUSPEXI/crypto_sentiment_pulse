@@ -71,9 +71,10 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
     const { x, y, width, height, value, domainMin, domainMax } = props;
     const color = value >= 0 ? '#22c55e' : '#ef4444';
     const domainRange = domainMax - domainMin;
-    const normalizedValue = Math.abs(value) / (Math.max(Math.abs(domainMin), Math.abs(domainMax))); // Normalize based on the max absolute domain value
-    const barWidth = width * normalizedValue; // Scale bar width proportionally
-    const xPos = value >= 0 ? x : x - barWidth; // Ensure symmetry around 0%
+    const maxAbsDomain = Math.max(Math.abs(domainMin), Math.abs(domainMax));
+    const normalizedValue = Math.abs(value) / maxAbsDomain; // Normalize based on max absolute domain value
+    const barWidth = (width / 2) * normalizedValue; // Scale bar width relative to half the chart width for symmetry
+    const xPos = value >= 0 ? x : x - barWidth; // Position bars symmetrically around the 0% mark
     return <rect x={xPos} y={y} width={barWidth} height={height} fill={color} />;
   };
 
@@ -88,7 +89,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   }));
 
   const getChartHeight = (numCoins: number): number => {
-    const baseHeight = 150;
+    const baseHeight = 200; // Increased base height to ensure ticker symbols render properly
     const heightPerCoin = 40;
     return Math.max(baseHeight, numCoins * heightPerCoin);
   };
@@ -143,7 +144,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                 <BarChart
                   data={activeWalletsData}
                   layout="vertical"
-                  margin={{ top: 10, right: 10, left: 60, bottom: 10 }} // Reduced right margin, adjusted left for balance
+                  margin={{ top: 10, right: 10, left: 60, bottom: 10 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
@@ -154,9 +155,9 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                   <YAxis
                     dataKey="coin"
                     type="category"
-                    width={50} // Adjusted width for better alignment
+                    width={50}
                     tickMargin={5}
-                    tick={{ dy: 8 }} // Fine-tune vertical alignment of ticker symbols
+                    tick={{ dy: 8 }}
                   />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
@@ -178,7 +179,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                 <BarChart
                   data={largeTransactionsData}
                   layout="vertical"
-                  margin={{ top: 10, right: 10, left: 60, bottom: 10 }} // Reduced right margin, adjusted left
+                  margin={{ top: 10, right: 10, left: 60, bottom: 10 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
@@ -189,9 +190,9 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                   <YAxis
                     dataKey="coin"
                     type="category"
-                    width={50} // Adjusted width for better alignment
+                    width={50}
                     tickMargin={5}
-                    tick={{ dy: 8 }} // Fine-tune vertical alignment of ticker symbols
+                    tick={{ dy: 8 }}
                   />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
