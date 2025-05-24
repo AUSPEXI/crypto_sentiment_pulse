@@ -1,7 +1,6 @@
 // src/components/OnChainInsights.tsx
 import React, { useState, useEffect } from 'react';
 import { Bar } from 'react-chartjs-2';
-import { BarChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { fetchOnChainData } from '../utils/api';
 import { OnChainData } from '../types';
 import {
@@ -64,22 +63,6 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
     return num.toString();
   };
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      const value = payload[0].value;
-      const isGrowth = payload[0].dataKey === 'transactions';
-      return (
-        <div className="bg-white p-3 rounded-lg shadow-md border border-gray-200">
-          <p className="font-medium text-gray-900">{label}</p>
-          <p className={`text-sm ${isGrowth ? 'text-blue-600' : 'text-blue-600'}`}>
-            {isGrowth ? formatNumber(value) : formatNumber(value)}
-          </p>
-        </div>
-      );
-    }
-    return null;
-  };
-
   const activeWalletsData = Object.entries(onChainData).map(([coin, data]) => ({
     coin,
     growth: data?.activeWalletsGrowth || 0,
@@ -119,17 +102,17 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   const transactionsRange = getTransactionsAxisRange(largeTransactionsData);
 
   // Prepare data for Chart.js Active Wallet Growth chart
-  const labels = activeWalletsData.map(item => item.coin);
+  const growthLabels = activeWalletsData.map(item => item.coin);
   const growthValues = activeWalletsData.map(item => item.growth);
 
-  const chartData = {
-    labels: labels,
+  const growthChartData = {
+    labels: growthLabels,
     datasets: [
       {
         label: 'Growth (%)',
         data: growthValues.map(value => ({
           x: [0, value], // Start at 0, end at the value
-          y: labels[growthValues.indexOf(value)],
+          y: growthLabels[growthValues.indexOf(value)],
         })),
         backgroundColor: growthValues.map(value => (value >= 0 ? '#22c55e' : '#ef4444')),
         borderWidth: 1,
@@ -138,7 +121,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
     ],
   };
 
-  const chartOptions = {
+  const growthChartOptions = {
     indexAxis: 'y' as const, // Horizontal bar chart
     scales: {
       x: {
@@ -161,13 +144,82 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
     },
     plugins: {
       legend: {
-        display: false, // Hide the legend to remove the green bar image
+        display: false, // Hide legend
       },
       tooltip: {
         callbacks: {
           label: (context: any) => {
             const value = context.raw.x[1];
             return `Growth: ${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
+          },
+        },
+      },
+    },
+    maintainAspectRatio: false,
+  };
+
+  // Prepare data for Chart.js Large Transactions chart
+  const transactionLabels = largeTransactionsData.map(item => item.coin);
+  const transactionValues = largeTransactionsData.map(item => item.transactions);
+
+  const transactionsChartData = {
+    labels: transactionLabels,
+    datasets: [
+      {
+        label: 'Transactions',
+        data: transactionValues.map(value => ({
+          x: [0, value], // Start at 0, end at the transaction value
+          y: transactionLabels[transactionValues.indexOf(value)],
+        })),
+        backgroundColor: '#3b82f6', // Blue color as per screenshot
+        borderWidth: 1,
+        barThickness: 20,
+      },
+    ],
+  };
+
+  const transactionsChartOptions = {
+    indexAxis: 'y' as const, // Horizontal bar chart
+    scales: {
+      x: {
+        min: 0,
+        max: transactionsRange[1],
+        ticks: {
+          callback: (value: number) => formatNumber(value),
+        },
+        grid: {
+          display: true,
+          drawBorder: true,
+          drawOnChartArea: true,
+        },
+      },
+      y: {
+        grid: {
+          display: false,
+        },
+      },
+    },
+    plugins: {
+      legend: {
+        display: true, // Show legend to match screenshot
+        labels: {
+          generateLabels: (chart) => {
+            return [{
+              text: 'Transactions',
+              fillStyle: '#3b82f6',
+              strokeStyle: '#3b82f6',
+              lineWidth: 1,
+              hidden: false,
+              datasetIndex: 0,
+            }];
+          },
+        },
+      },
+      tooltip: {
+        callbacks: {
+          label: (context: any) => {
+            const value = context.raw.x[1];
+            return `Transactions: ${formatNumber(value)}`;
           },
         },
       },
@@ -197,41 +249,13 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
           <div>
             <h3 className="text-md font-medium text-gray-700 mb-2">Active Wallet Growth</h3>
             <div style={{ height: `${chartHeight}px` }}>
-              <Bar data={chartData} options={chartOptions} />
+              <Bar data={growthChartData} options={growthChartOptions} />
             </div>
           </div>
           <div>
             <h3 className="text-md font-medium text-gray-700 mb-2">Large Transactions</h3>
             <div style={{ height: `${chartHeight}px` }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={largeTransactionsData}
-                  layout="vertical"
-                  margin={{ top: 10, right: 10, left: 60, bottom: 10 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    type="number"
-                    domain={transactionsRange}
-                    tickFormatter={formatNumber}
-                  />
-                  <YAxis
-                    dataKey="coin"
-                    type="category"
-                    width={50}
-                    tickMargin={10}
-                    tick={{ dy: 8 }}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Legend />
-                  <Bar
-                    dataKey="transactions"
-                    name="Transactions"
-                    fill="#3b82f6"
-                    barSize={20}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
+              <Bar data={transactionsChartData} options={transactionsChartOptions} />
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
