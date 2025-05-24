@@ -40,8 +40,9 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
     return () => clearInterval(intervalId);
   }, [coinsToFetch]);
 
+  // Adjust height calculation: 280px per row to account for larger dials and metrics
   const rows = Math.ceil(coinsToFetch.length / 3);
-  const containerHeight = rows * 200;
+  const containerHeight = rows * 280; // Increased from 200 to 280 to fit larger dials and prevent overlap
 
   if (selectedCoins.length === 0 && !loading && !error && Object.keys(sentimentData).length === 0) {
     return (
@@ -61,7 +62,10 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
         <p className="text-gray-500">No sentiment data available for the selected coins.</p>
       )}
       {!loading && !error && Object.keys(sentimentData).length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" style={{ height: `${containerHeight}px` }}>
+        <div
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+          style={{ minHeight: `${containerHeight}px` }} // Use minHeight to ensure the container doesn't collapse
+        >
           {coinsToFetch.map(coin => {
             const data = sentimentData[coin];
             if (!data || data.score === undefined) {
