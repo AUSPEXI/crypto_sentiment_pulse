@@ -86,8 +86,8 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   }));
 
   const getChartHeight = (numCoins: number): number => {
-    const baseHeight = 200;
-    const heightPerCoin = 50;
+    const baseHeight = 150;
+    const heightPerCoin = 40;
     return Math.max(baseHeight, numCoins * heightPerCoin);
   };
 
@@ -109,6 +109,8 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   };
 
   const chartHeight = getChartHeight(selectedCoins.length);
+  const growthRange = getGrowthAxisRange(activeWalletsData);
+  const transactionsRange = getTransactionsAxisRange(largeTransactionsData);
 
   if (!selectedCoins.length) {
     return (
@@ -133,14 +135,31 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
             <h3 className="text-md font-medium text-gray-700 mb-2">Active Wallet Growth</h3>
             <div style={{ height: `${chartHeight}px` }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={activeWalletsData} layout="vertical" margin={{ top: 10, right: 20, left: 80, bottom: 10 }}>
+                <BarChart
+                  data={activeWalletsData}
+                  layout="vertical"
+                  margin={{ top: 10, right: 20, left: 80, bottom: 10 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" domain={[-5, 5]} tickFormatter={(value) => `${value.toFixed(1)}%`} />
-                  <YAxis dataKey="coin" type="category" width={60} />
+                  <XAxis
+                    type="number"
+                    domain={[growthRange.min, growthRange.max]}
+                    tickFormatter={(value) => `${value.toFixed(1)}%`}
+                  />
+                  <YAxis
+                    dataKey="coin"
+                    type="category"
+                    width={60}
+                  />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
                   <ReferenceLine x={0} stroke="#666" />
-                  <Bar dataKey="growth" name="Growth (%)" shape={<GrowthBar />} barSize={10} />
+                  <Bar
+                    dataKey="growth"
+                    name="Growth (%)"
+                    shape={<GrowthBar />}
+                    barSize={10}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -149,21 +168,43 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
             <h3 className="text-md font-medium text-gray-700 mb-2">Large Transactions</h3>
             <div style={{ height: `${chartHeight}px` }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={largeTransactionsData} layout="vertical" margin={{ top: 10, right: 20, left: 80, bottom: 10 }}>
+                <BarChart
+                  data={largeTransactionsData}
+                  layout="vertical"
+                  margin={{ top: 10, right: 20, left: 80, bottom: 10 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" domain={[0, 1000]} tickFormatter={formatNumber} />
-                  <YAxis dataKey="coin" type="category" width={60} />
+                  <XAxis
+                    type="number"
+                    domain={transactionsRange}
+                    tickFormatter={formatNumber}
+                  />
+                  <YAxis
+                    dataKey="coin"
+                    type="category"
+                    width={60}
+                  />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
-                  <Bar dataKey="transactions" name="Transactions" fill="#3b82f6" barSize={10} />
+                  <Bar
+                    dataKey="transactions"
+                    name="Transactions"
+                    fill="#3b82f6"
+                    barSize={10}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {selectedCoins.map(coin => {
               const data = onChainData[coin];
-              if (!data || data.activeWallets === undefined || data.activeWalletsGrowth === undefined || data.largeTransactions === undefined) {
+              if (
+                !data ||
+                data.activeWallets === undefined ||
+                data.activeWalletsGrowth === undefined ||
+                data.largeTransactions === undefined
+              ) {
                 return (
                   <div key={coin} className="bg-gray-50 p-3 rounded-md">
                     <h3 className="font-medium text-gray-800">{coin} On-Chain Data</h3>
@@ -175,9 +216,20 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                 <div key={coin} className="bg-gray-50 p-3 rounded-md">
                   <h3 className="font-medium text-gray-800">{coin} On-Chain Data</h3>
                   <div className="mt-2 space-y-1">
-                    <div className="flex justify-between"><span className="text-sm text-gray-600">Active Wallets:</span><span className="text-sm font-medium text-blue-600">{formatNumber(data.activeWallets)}</span></div>
-                    <div className="flex justify-between"><span className="text-sm text-gray-600">Growth:</span><span className={`text-sm font-medium ${data.activeWalletsGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>{data.activeWalletsGrowth >= 0 ? '+' : ''}{data.activeWalletsGrowth.toFixed(2)}%</span></div>
-                    <div className="flex justify-between"><span className="text-sm text-gray-600">Large Transactions:</span><span className="text-sm font-medium text-purple-600">{formatNumber(data.largeTransactions)}</span></div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Active Wallets:</span>
+                      <span className="text-sm font-medium text-blue-600">{formatNumber(data.activeWallets)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Growth:</span>
+                      <span className={`text-sm font-medium ${data.activeWalletsGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {data.activeWalletsGrowth >= 0 ? '+' : ''}{data.activeWalletsGrowth.toFixed(2)}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Large Transactions:</span>
+                      <span className="text-sm font-medium text-purple-600">{formatNumber(data.largeTransactions)}</span>
+                    </div>
                   </div>
                 </div>
               );
