@@ -21,60 +21,43 @@ const SentimentSpeedometer: React.FC<SentimentSpeedometerProps> = ({ value, size
     const radius = (size - margin * 2) / 2;
     const center = size / 2;
 
-    // Scale for the arc (0 to 100 maps to 0 to 180 degrees)
     const scale = d3.scaleLinear()
       .domain([0, 100])
-      .range([0, Math.PI]); // 0 to 180 degrees
+      .range([-Math.PI / 2, Math.PI / 2]);
 
-    // Arc generator for the background
-    const backgroundArc = d3.arc()
+    const arc = d3.arc()
       .innerRadius(radius - 20)
       .outerRadius(radius)
-      .startAngle(0)
-      .endAngle(Math.PI);
+      .startAngle(-Math.PI / 2)
+      .endAngle(Math.PI / 2);
 
-    // Arc generator for the value
-    const valueArc = d3.arc()
-      .innerRadius(radius - 20)
-      .outerRadius(radius)
-      .startAngle(0)
-      .endAngle(scale(value));
-
-    // Color scale based on sentiment
     const colorScale = d3.scaleLinear<string>()
       .domain([0, 50, 100])
       .range(['#ef4444', '#eab308', '#22c55e']);
 
     // Add background arc
     svg.append('path')
-      .datum({ endAngle: Math.PI })
+      .datum({ endAngle: Math.PI / 2 })
       .style('fill', '#e5e7eb')
       .attr('transform', `translate(${center},${center})`)
-      .attr('d', backgroundArc as any);
+      .attr('d', arc as any);
 
     // Add value arc
+    const valueArc = d3.arc()
+      .innerRadius(radius - 20)
+      .outerRadius(radius)
+      .startAngle(-Math.PI / 2)
+      .endAngle(scale(value));
+
     svg.append('path')
-      .datum({ endAngle: scale(value) })
       .style('fill', colorScale(value))
       .attr('transform', `translate(${center},${center})`)
       .attr('d', valueArc as any);
 
-    // Add needle
-    const needleLength = radius - 30;
-    const needleAngle = scale(value) - Math.PI / 2; // Convert to Cartesian angle
-    svg.append('line')
-      .attr('x1', center)
-      .attr('y1', center)
-      .attr('x2', center + needleLength * Math.cos(needleAngle))
-      .attr('y2', center + needleLength * Math.sin(needleAngle))
-      .attr('stroke', '#374151')
-      .attr('stroke-width', 2)
-      .attr('transform', `rotate(${needleAngle * 180 / Math.PI}, ${center}, ${center})`);
-
     // Add value text
     svg.append('text')
       .attr('x', center)
-      .attr('y', center + 20)
+      .attr('y', center + 10)
       .attr('text-anchor', 'middle')
       .style('font-size', '24px')
       .style('font-weight', 'bold')
@@ -84,13 +67,13 @@ const SentimentSpeedometer: React.FC<SentimentSpeedometerProps> = ({ value, size
     // Add label
     svg.append('text')
       .attr('x', center)
-      .attr('y', center - 20)
+      .attr('y', center - 30)
       .attr('text-anchor', 'middle')
       .style('font-size', '14px')
       .style('fill', '#6b7280')
       .text('Sentiment Score');
 
-    // Add timestamp if provided
+    // Add timestamp
     if (timestamp) {
       svg.append('text')
         .attr('x', center)
@@ -101,10 +84,37 @@ const SentimentSpeedometer: React.FC<SentimentSpeedometerProps> = ({ value, size
         .text(`Last updated: ${new Date(timestamp).toLocaleString()}`);
     }
 
+    // Add positive/negative/neutral percentages below
+    const positive = value > 50 ? (value - 50) * 2 : 0;
+    const negative = value < 50 ? (50 - value) * 2 : 0;
+    const neutral = Math.abs(50 - value) === 50 ? 100 : 0;
+
+    svg.append('text')
+      .attr('x', center - 40)
+      .attr('y', center + 60)
+      .attr('text-anchor', 'start')
+      .style('font-size', '12px')
+      .style('fill', '#22c55e')
+      .text(`Positive: ${positive.toFixed(2)}%`);
+    svg.append('text')
+      .attr('x', center - 40)
+      .attr('y', center + 75)
+      .attr('text-anchor', 'start')
+      .style('font-size', '12px')
+      .style('fill', '#ef4444')
+      .text(`Negative: ${negative.toFixed(2)}%`);
+    svg.append('text')
+      .attr('x', center - 40)
+      .attr('y', center + 90)
+      .attr('text-anchor', 'start')
+      .style('font-size', '12px')
+      .style('fill', '#6b7280')
+      .text(`Neutral: ${neutral.toFixed(2)}%`);
+
   }, [value, size, timestamp]);
 
   return (
-    <svg ref={svgRef} width={size} height={size} className="mx-auto" />
+    <svg ref={svgRef} width={size} height={size + 100} className="mx-auto" /> // Increased height for text
   );
 };
 
