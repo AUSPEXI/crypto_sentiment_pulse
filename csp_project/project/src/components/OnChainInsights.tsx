@@ -76,7 +76,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
     const centerX = x + (width * (0 - domainMin)) / domainRange; // Map 0% to the chart's X-axis
 
     // Scale the bar width with a factor (e.g., 15) for better visibility, capped at half the chart width
-    const scaleFactor = 15; // Adjustable factor to make bars more visible
+    const scaleFactor = 30; // Adjustable factor to make bars more visible
     const normalizedWidth = (width * value * scaleFactor) / domainRange;
     const barWidth = Math.min(Math.abs(normalizedWidth), width / 2); // Cap width at half the chart to avoid overlap
     const xPos = value >= 0 ? centerX : centerX - barWidth; // Start at 0%, extend right for positive, left for negative
