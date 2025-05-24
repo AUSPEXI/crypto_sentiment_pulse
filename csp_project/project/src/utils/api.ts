@@ -84,7 +84,7 @@ const HUGGINGFACE_API_KEY = import.meta.env.VITE_HUGGINGFACE_API_KEY;
 // Helper to fetch recent news or social media posts for sentiment analysis (mocked for simplicity)
 const fetchRecentNews = async (coin: string): Promise<string> => {
   try {
-    const response = await axios.get('[invalid url, do not cite] {
+    const response = await axios.get('https://cryptopanic.com/api/v1/posts/', {
       params: {
         auth_token: import.meta.env.VITE_CRYPTOPANIC_API_TOKEN,
         public: true,
