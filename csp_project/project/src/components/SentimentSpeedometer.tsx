@@ -9,6 +9,7 @@ interface SentimentSpeedometerProps {
 }
 
 const SentimentSpeedometer: React.FC<SentimentSpeedometerProps> = ({ value, size = 150, timestamp }) => {
+  console.log('SentimentSpeedometer updated version running');
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
@@ -41,21 +42,18 @@ const SentimentSpeedometer: React.FC<SentimentSpeedometerProps> = ({ value, size
       .domain([0, 50, 100])
       .range(['#ef4444', '#eab308', '#22c55e']);
 
-    // Add background arc
     svg.append('path')
       .datum({ endAngle: Math.PI / 2 })
       .style('fill', '#e5e7eb')
       .attr('transform', `translate(${center},${center})`)
       .attr('d', backgroundArc as any);
 
-    // Add value arc
     svg.append('path')
       .datum({ endAngle: scale(value) })
       .style('fill', colorScale(value))
       .attr('transform', `translate(${center},${center})`)
       .attr('d', valueArc as any);
 
-    // Add value text inside the arc
     svg.append('text')
       .attr('x', center)
       .attr('y', center + 10)
@@ -65,7 +63,6 @@ const SentimentSpeedometer: React.FC<SentimentSpeedometerProps> = ({ value, size
       .style('fill', colorScale(value))
       .text(Math.round(value));
 
-    // Add label inside the arc
     svg.append('text')
       .attr('x', center)
       .attr('y', center - 20)
@@ -74,7 +71,6 @@ const SentimentSpeedometer: React.FC<SentimentSpeedometerProps> = ({ value, size
       .style('fill', '#6b7280')
       .text('Sentiment Score');
 
-    // Add timestamp
     if (timestamp) {
       svg.append('text')
         .attr('x', center)
@@ -84,12 +80,9 @@ const SentimentSpeedometer: React.FC<SentimentSpeedometerProps> = ({ value, size
         .style('fill', '#6b7280')
         .text(`Last updated: ${new Date(timestamp).toLocaleString()}`);
     }
-
   }, [value, size, timestamp]);
 
-  return (
-    <svg ref={svgRef} width={size} height={size} className="mx-auto" />
-  );
+  return <svg ref={svgRef} width={size} height={size} className="mx-auto" />;
 };
 
 export default SentimentSpeedometer;
