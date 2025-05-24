@@ -74,14 +74,13 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
     // Calculate the domain range and the pixel position of 0%
     const domainRange = domainMax - domainMin;
     const centerX = x + (width * (0 - domainMin)) / domainRange; // Map 0% to the chart's X-axis
+    const valuePosition = x + (width * (value - domainMin)) / domainRange; // Map the value to the chart's X-axis
 
-    // Scale the bar width with a factor (e.g., 15) for better visibility, capped at half the chart width
-    const scaleFactor = 400; // Adjustable factor to make bars more visible
-    const normalizedWidth = (width * value * scaleFactor) / domainRange;
-    const barWidth = Math.min(Math.abs(normalizedWidth), width / 2); // Cap width at half the chart to avoid overlap
+    // Calculate bar width and starting position to always start at 0% and extend to the value
+    const barWidth = Math.abs(centerX - valuePosition);
     const xPos = value >= 0 ? centerX : centerX - barWidth; // Start at 0%, extend right for positive, left for negative
 
-    // Ensure a minimum width for visibility (e.g., for small values like 0.20%)
+    // Ensure a minimum width for visibility
     const minWidth = Math.max(1, barWidth);
 
     return <rect x={xPos} y={y} width={minWidth} height={height} fill={color} />;
@@ -105,12 +104,12 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
 
   const getGrowthAxisRange = (data: typeof activeWalletsData) => {
     const values = data.map(item => item.growth).filter(v => v !== 0);
-    if (values.length === 0) return { min: -20, max: 20 }; // Default minimum range of ±20%
+    if (values.length === 0) return { min: -5, max: 5 }; // Default range of ±5%
 
     // Find the maximum absolute value in the data
     const maxAbsValue = Math.max(...values.map(Math.abs));
-    // Ensure a minimum range of ±20%, but cap at ±100%
-    const range = Math.min(100, Math.max(20, maxAbsValue));
+    // Cap the range at ±5% since wallet growth is typically small
+    const range = Math.min(5, Math.max(1, maxAbsValue)); // Ensure at least ±1% for very small values
     // Add a small padding (10% of the range) for better visualization
     const padding = range * 0.1;
     return { min: -range - padding, max: range + padding }; // Symmetric domain around 0%
