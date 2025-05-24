@@ -40,9 +40,8 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
     return () => clearInterval(intervalId);
   }, [coinsToFetch]);
 
-  // Adjust height calculation: 280px per row to account for larger dials and metrics
   const rows = Math.ceil(coinsToFetch.length / 3);
-  const containerHeight = rows * 280; // Increased from 200 to 280 to fit larger dials and prevent overlap
+  const containerHeight = rows * 280;
 
   if (selectedCoins.length === 0 && !loading && !error && Object.keys(sentimentData).length === 0) {
     return (
@@ -64,7 +63,7 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
       {!loading && !error && Object.keys(sentimentData).length > 0 && (
         <div
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
-          style={{ minHeight: `${containerHeight}px` }} // Use minHeight to ensure the container doesn't collapse
+          style={{ minHeight: `${containerHeight}px` }}
         >
           {coinsToFetch.map(coin => {
             const data = sentimentData[coin];
@@ -75,7 +74,11 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
                 </div>
               );
             }
-            const speedometerValue = ((data.score + 10) / 20) * 100;
+            const speedometerValue = ((data.score + 10) / 20) * 100; // -10 to 10 -> 0 to 100
+            const positive = speedometerValue > 50 ? (speedometerValue - 50) * 2 : 0;
+            const negative = speedometerValue < 50 ? (50 - speedometerValue) * 2 : 0;
+            const neutral = Math.abs(50 - speedometerValue) === 50 ? 100 : 100 - positive - negative;
+
             return (
               <div key={coin} className="bg-gray-50 p-3 rounded-md flex flex-col items-center justify-center h-64">
                 <h3 className="font-medium text-gray-800 mb-2 text-center">{coin}</h3>
@@ -83,15 +86,15 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
                 <div className="mt-2 text-sm text-gray-600 text-center">
                   <div className="flex justify-between">
                     <span>Positive:</span>
-                    <span className="text-green-600">{((speedometerValue > 50 ? (speedometerValue - 50) * 2 : 0).toFixed(1))}%</span>
+                    <span className="text-green-600">{positive.toFixed(1)}%</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Negative:</span>
-                    <span className="text-red-600">{(speedometerValue < 50 ? (50 - speedometerValue) * 2 : 0).toFixed(1)}%</span>
+                    <span className="text-red-600">{negative.toFixed(1)}%</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Neutral:</span>
-                    <span>{(Math.abs(50 - speedometerValue) === 50 ? 100 : 0).toFixed(1)}%</span>
+                    <span>{neutral.toFixed(1)}%</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Last updated:</span>
