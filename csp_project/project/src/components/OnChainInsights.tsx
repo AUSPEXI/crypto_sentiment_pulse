@@ -1,6 +1,6 @@
 // src/components/OnChainInsights.tsx
 import React, { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine, ScaleType } from 'recharts';
 import { fetchOnChainData } from '../utils/api';
 import { OnChainData } from '../types';
 
@@ -70,11 +70,16 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   const GrowthBar = (props: any) => {
     const { x, y, width, height, value, domainMin, domainMax } = props;
     const color = value >= 0 ? '#22c55e' : '#ef4444';
+
+    // Calculate the domain range and the position of 0% in the chart's coordinate space
     const domainRange = domainMax - domainMin;
-    const maxAbsDomain = Math.max(Math.abs(domainMin), Math.abs(domainMax));
-    const normalizedValue = Math.abs(value) / maxAbsDomain; // Normalize based on max absolute domain value
-    const barWidth = (width / 2) * normalizedValue; // Scale bar width relative to half the chart width for symmetry
-    const xPos = value >= 0 ? x : x - barWidth; // Position bars symmetrically around the 0% mark
+    const zeroPosition = x + (width * (0 - domainMin)) / domainRange; // Map 0% to the chart's X-axis
+    const valuePosition = x + (width * (value - domainMin)) / domainRange; // Map the value to the chart's X-axis
+
+    // Calculate bar width and position to ensure symmetry around 0%
+    const barWidth = Math.abs(zeroPosition - valuePosition);
+    const xPos = value >= 0 ? zeroPosition : valuePosition;
+
     return <rect x={xPos} y={y} width={barWidth} height={height} fill={color} />;
   };
 
@@ -89,7 +94,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   }));
 
   const getChartHeight = (numCoins: number): number => {
-    const baseHeight = 200; // Increased base height to ensure ticker symbols render properly
+    const baseHeight = 250; // Increased to ensure ticker symbols are visible even for fewer coins
     const heightPerCoin = 40;
     return Math.max(baseHeight, numCoins * heightPerCoin);
   };
@@ -156,7 +161,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                     dataKey="coin"
                     type="category"
                     width={50}
-                    tickMargin={5}
+                    tickMargin={10} // Increased to ensure labels don't clip
                     tick={{ dy: 8 }}
                   />
                   <Tooltip content={<CustomTooltip />} />
@@ -191,7 +196,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                     dataKey="coin"
                     type="category"
                     width={50}
-                    tickMargin={5}
+                    tickMargin={10} // Increased to ensure labels don't clip
                     tick={{ dy: 8 }}
                   />
                   <Tooltip content={<CustomTooltip />} />
