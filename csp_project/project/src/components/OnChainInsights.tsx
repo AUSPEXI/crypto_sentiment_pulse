@@ -74,10 +74,14 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
     // Calculate the domain range and the pixel position of 0%
     const domainRange = domainMax - domainMin;
     const centerX = x + (width * (0 - domainMin)) / domainRange; // Map 0% to the chart's X-axis
-    const valuePosition = x + (width * (value - domainMin)) / domainRange; // Map the value to the chart's X-axis
 
-    // Calculate bar width and starting position to always start at 0% and extend to the value
+    // Calculate the pixel position of the value
+    const valuePosition = x + (width * (value - domainMin)) / domainRange;
+
+    // Calculate bar width as the distance from 0% (centerX) to the value
     const barWidth = Math.abs(centerX - valuePosition);
+
+    // Ensure bars always start at 0% (centerX) and extend to their value
     const xPos = value >= 0 ? centerX : centerX - barWidth; // Start at 0%, extend right for positive, left for negative
 
     // Ensure a minimum width for visibility
@@ -108,8 +112,8 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
 
     // Find the maximum absolute value in the data
     const maxAbsValue = Math.max(...values.map(Math.abs));
-    // Cap the range at ±5% since wallet growth is typically small
-    const range = Math.min(5, Math.max(1, maxAbsValue)); // Ensure at least ±1% for very small values
+    // Use a minimum range of ±5% as a realistic bound for wallet growth
+    const range = Math.max(5, maxAbsValue); // Ensure at least ±5% unless data exceeds it
     // Add a small padding (10% of the range) for better visualization
     const padding = range * 0.1;
     return { min: -range - padding, max: range + padding }; // Symmetric domain around 0%
