@@ -13,15 +13,18 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Default to 9 coins if none selected
+  const coinsToFetch = selectedCoins.length > 0 ? selectedCoins : ['BTC', 'ETH', 'BNB', 'SOL', 'USDC', 'DOGE', 'ADA', 'TRX', 'AVAX'];
+
   useEffect(() => {
     const fetchData = async () => {
-      console.log('Fetching sentiment data for coins:', selectedCoins);
+      console.log('Fetching sentiment data for coins:', coinsToFetch);
       setLoading(true);
       setError(null);
 
       try {
         const newData: Record<string, SentimentData> = {};
-        for (const coin of selectedCoins) {
+        for (const coin of coinsToFetch) {
           const data = await fetchSentimentData(coin);
           console.log(`Sentiment data for ${coin}:`, data);
           if (data && data.score !== undefined) {
@@ -39,23 +42,18 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
       }
     };
 
-    if (selectedCoins.length > 0) {
-      fetchData();
-      const intervalId = setInterval(fetchData, 60 * 60 * 1000); // Update hourly
-      return () => clearInterval(intervalId);
-    } else {
-      console.log('No coins selected, skipping sentiment fetch');
-      setLoading(false);
-    }
-  }, [selectedCoins]);
+    fetchData();
+    const intervalId = setInterval(fetchData, 60 * 60 * 1000); // Update hourly
+    return () => clearInterval(intervalId);
+  }, [coinsToFetch]);
 
   console.log('sentimentData:', sentimentData);
 
-  if (!selectedCoins.length) {
+  if (selectedCoins.length === 0 && !loading && !error && Object.keys(sentimentData).length === 0) {
     return (
       <div className="bg-white rounded-lg shadow-md p-4">
         <h2 className="text-lg font-semibold text-blue-800 mb-4">Sentiment Snapshot</h2>
-        <p className="text-gray-500">Please select at least one coin to view sentiment data.</p>
+        <p className="text-gray-500">Loading default coin data...</p>
       </div>
     );
   }
@@ -78,7 +76,7 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
 
       {!loading && !error && Object.keys(sentimentData).length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {selectedCoins.map(coin => {
+          {coinsToFetch.map(coin => {
             const data = sentimentData[coin];
             if (!data || data.score === undefined) {
               return (
@@ -89,7 +87,6 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
               );
             }
 
-            // Convert score to 0-100 range for speedometer (assuming -10 to 10 maps to 0 to 100)
             const speedometerValue = ((data.score + 10) / 20) * 100;
 
             return (
