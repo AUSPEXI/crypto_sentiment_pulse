@@ -161,7 +161,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
     },
     plugins: {
       legend: {
-        display: true,
+        display: false, // Hide the legend to remove the green bar image
       },
       tooltip: {
         callbacks: {
