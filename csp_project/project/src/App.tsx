@@ -3,7 +3,7 @@ import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import SentimentSnapshot from './components/SentimentSnapshot';
 import OnChainInsights from './components/OnChainInsights';
-import CryptoNews from './components/CryptoNews';
+import EventAlerts from './components/EventAlerts'; // Use EventAlerts instead of CryptoNews
 import PortfolioTracker from './components/PortfolioTracker';
 import Navbar from './components/Navbar';
 
@@ -18,7 +18,7 @@ const App: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="space-y-6">
               <SentimentSnapshot selectedCoins={selectedCoins} />
-              <CryptoNews selectedCoins={selectedCoins} />
+              <EventAlerts selectedCoins={selectedCoins} /> {/* Replace CryptoNews with EventAlerts */}
               <PortfolioTracker selectedCoins={selectedCoins} setSelectedCoins={setSelectedCoins} />
             </div>
             <div className="space-y-6">
