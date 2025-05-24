@@ -68,9 +68,11 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   };
 
   const GrowthBar = (props: any) => {
-    const { x, y, width, height, value } = props;
+    const { x, y, width, height, value, domainMin, domainMax } = props;
     const color = value >= 0 ? '#22c55e' : '#ef4444';
-    const barWidth = Math.abs(width * (value / 100));
+    const domainRange = domainMax - domainMin;
+    const normalizedValue = value / (domainRange / 2); // Normalize value relative to the domain
+    const barWidth = Math.abs(width * normalizedValue); // Scale bar width based on normalized value
     const xPos = value >= 0 ? x : x - barWidth;
     return <rect x={xPos} y={y} width={barWidth} height={height} fill={color} />;
   };
@@ -93,14 +95,14 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
 
   const getGrowthAxisRange = (data: typeof activeWalletsData) => {
     const values = data.map(item => item.growth).filter(v => v !== 0);
-    if (values.length === 0) return { min: -1, max: 1 }; // Default to a smaller range if no data
+    if (values.length === 0) return { min: -0.5, max: 0.5 }; // Tighter default range for no data
     const minValue = Math.min(...values);
     const maxValue = Math.max(...values);
     const maxAbsValue = Math.max(Math.abs(minValue), Math.abs(maxValue));
-    const padding = maxAbsValue * 0.1; // Reduced padding to 10% of the max absolute value
-    // Ensure the range is at least ±1% to avoid overly tiny scales
-    const adjustedMin = Math.min(minValue - padding, -1);
-    const adjustedMax = Math.max(maxValue + padding, 1);
+    const padding = maxAbsValue * 0.05; // Minimal padding (5% of max absolute value)
+    // Ensure the range is at least ±0.5% to avoid overly tiny scales, but scale dynamically
+    const adjustedMin = Math.min(minValue - padding, -0.5);
+    const adjustedMax = Math.max(maxValue + padding, 0.5);
     return { min: adjustedMin, max: adjustedMax };
   };
 
@@ -161,8 +163,8 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                   <Bar
                     dataKey="growth"
                     name="Growth (%)"
-                    shape={<GrowthBar />}
-                    barSize={30} // Increased bar size for better visibility
+                    shape={(props) => <GrowthBar {...props} domainMin={growthRange.min} domainMax={growthRange.max} />}
+                    barSize={40} // Increased bar size for better visibility
                   />
                 </BarChart>
               </ResponsiveContainer>
