@@ -9,21 +9,18 @@ interface OnChainInsightsProps {
 }
 
 const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
-  console.log('OnChainInsights updated version running');
   const [onChainData, setOnChainData] = useState<Record<string, OnChainData>>({});
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
-      console.log('Fetching on-chain data for coins:', selectedCoins);
       setLoading(true);
       setError(null);
       try {
         const newData: Record<string, OnChainData> = {};
         for (const coin of selectedCoins) {
           const data = await fetchOnChainData(coin);
-          console.log(`Data for ${coin}:`, data);
           if (data && data.activeWallets !== undefined && data.activeWalletsGrowth !== undefined && data.largeTransactions !== undefined) {
             newData[coin] = data;
           } else {
@@ -89,8 +86,8 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   }));
 
   const getChartHeight = (numCoins: number): number => {
-    const baseHeight = 150;
-    const heightPerCoin = 40;
+    const baseHeight = 200;
+    const heightPerCoin = 50;
     return Math.max(baseHeight, numCoins * heightPerCoin);
   };
 
@@ -112,10 +109,6 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   };
 
   const chartHeight = getChartHeight(selectedCoins.length);
-  const growthRange = getGrowthAxisRange(activeWalletsData);
-  const transactionsRange = getTransactionsAxisRange(largeTransactionsData);
-  const rows = Math.ceil(selectedCoins.length / 3);
-  const containerHeight = rows * 200;
 
   if (!selectedCoins.length) {
     return (
@@ -127,7 +120,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-4" style={{ height: `${containerHeight}px` }}>
+    <div className="bg-white rounded-lg shadow-md p-4">
       <h2 className="text-lg font-semibold text-blue-800 mb-4">On-Chain Insights</h2>
       {loading && <p className="text-gray-500">Loading on-chain data...</p>}
       {error && <div className="bg-red-100 text-red-700 p-3 rounded-md mb-4">{error}</div>}
@@ -142,7 +135,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={activeWalletsData} layout="vertical" margin={{ top: 10, right: 20, left: 80, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" domain={[growthRange.min, growthRange.max]} tickFormatter={(value) => `${value.toFixed(1)}%`} />
+                  <XAxis type="number" domain={[-5, 5]} tickFormatter={(value) => `${value.toFixed(1)}%`} />
                   <YAxis dataKey="coin" type="category" width={60} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
@@ -158,7 +151,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={largeTransactionsData} layout="vertical" margin={{ top: 10, right: 20, left: 80, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" domain={transactionsRange} tickFormatter={formatNumber} />
+                  <XAxis type="number" domain={[0, 1000]} tickFormatter={formatNumber} />
                   <YAxis dataKey="coin" type="category" width={60} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
