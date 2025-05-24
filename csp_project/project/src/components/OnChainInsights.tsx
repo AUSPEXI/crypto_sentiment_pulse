@@ -1,6 +1,6 @@
 // src/components/OnChainInsights.tsx
 import React, { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine, ScaleType } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { fetchOnChainData } from '../utils/api';
 import { OnChainData } from '../types';
 
@@ -68,17 +68,14 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   };
 
   const GrowthBar = (props: any) => {
-    const { x, y, width, height, value, domainMin, domainMax } = props;
+    const { x, y, width, height, value } = props;
     const color = value >= 0 ? '#22c55e' : '#ef4444';
 
-    // Calculate the domain range and the position of 0% in the chart's coordinate space
-    const domainRange = domainMax - domainMin;
-    const zeroPosition = x + (width * (0 - domainMin)) / domainRange; // Map 0% to the chart's X-axis
-    const valuePosition = x + (width * (value - domainMin)) / domainRange; // Map the value to the chart's X-axis
-
-    // Calculate bar width and position to ensure symmetry around 0%
-    const barWidth = Math.abs(zeroPosition - valuePosition);
-    const xPos = value >= 0 ? zeroPosition : valuePosition;
+    // Center the bars around the middle of the chart's width
+    const centerX = x + width / 2; // Middle of the chart's X-axis space
+    const normalizedValue = value / (Math.max(Math.abs(props.domainMin), Math.abs(props.domainMax))); // Normalize based on max domain
+    const barWidth = (width / 2) * Math.abs(normalizedValue); // Scale bar width relative to half the chart width
+    const xPos = value >= 0 ? centerX : centerX - barWidth; // Position bars symmetrically around the center
 
     return <rect x={xPos} y={y} width={barWidth} height={height} fill={color} />;
   };
@@ -94,7 +91,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   }));
 
   const getChartHeight = (numCoins: number): number => {
-    const baseHeight = 250; // Increased to ensure ticker symbols are visible even for fewer coins
+    const baseHeight = 250;
     const heightPerCoin = 40;
     return Math.max(baseHeight, numCoins * heightPerCoin);
   };
@@ -104,11 +101,9 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
     if (values.length === 0) return { min: -0.5, max: 0.5 };
     const minValue = Math.min(...values);
     const maxValue = Math.max(...values);
-    const maxAbsValue = Math.max(Math.abs(minValue), Math.abs(maxValue));
+    const maxAbsValue = Math.max(Math.abs(minValue), Math.abs(maxValue)); // Ensure symmetry around 0%
     const padding = maxAbsValue * 0.05;
-    const adjustedMin = Math.min(minValue - padding, -0.5);
-    const adjustedMax = Math.max(maxValue + padding, 0.5);
-    return { min: adjustedMin, max: adjustedMax };
+    return { min: -maxAbsValue - padding, max: maxAbsValue + padding }; // Symmetric domain
   };
 
   const getTransactionsAxisRange = (data: typeof largeTransactionsData) => {
@@ -161,7 +156,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                     dataKey="coin"
                     type="category"
                     width={50}
-                    tickMargin={10} // Increased to ensure labels don't clip
+                    tickMargin={10}
                     tick={{ dy: 8 }}
                   />
                   <Tooltip content={<CustomTooltip />} />
@@ -196,7 +191,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                     dataKey="coin"
                     type="category"
                     width={50}
-                    tickMargin={10} // Increased to ensure labels don't clip
+                    tickMargin={10}
                     tick={{ dy: 8 }}
                   />
                   <Tooltip content={<CustomTooltip />} />
