@@ -11,7 +11,7 @@ interface OnChainInsightsProps {
 const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   const [onChainData, setOnChainData] = useState<Record<string, OnChainData>>({});
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null); // Fixed: Changed 'state' to 'useState'
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -68,15 +68,17 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   };
 
   const GrowthBar = (props: any) => {
-    const { x, y, width, height, value } = props;
+    const { x, y, width, height, value, domainMin, domainMax } = props;
     const color = value >= 0 ? '#22c55e' : '#ef4444';
 
-    // Center the bars around the 0% mark
-    const centerX = x + width / 2; // Middle of the chart's X-axis space
-    const maxRange = 1; // Fixed range of 1% for normalization
-    const normalizedValue = value / maxRange; // Normalize to -1 to 1
-    const barWidth = (width / 2) * Math.abs(normalizedValue); // Scale bar width relative to half the chart width
-    const xPos = value >= 0 ? centerX : centerX - barWidth; // Start at center, extend right for green, left for red
+    // Calculate the domain range and the pixel position of 0%
+    const domainRange = domainMax - domainMin;
+    const centerX = x + (width * (0 - domainMin)) / domainRange; // Map 0% to the chart's X-axis
+    const valuePosition = x + (width * (value - domainMin)) / domainRange; // Map the value to the chart's X-axis
+
+    // Calculate bar width and position to start at 0% and extend to the value
+    const barWidth = Math.abs(centerX - valuePosition);
+    const xPos = value >= 0 ? centerX : valuePosition; // Start at 0%, extend right for positive, left for negative
 
     return <rect x={xPos} y={y} width={barWidth} height={height} fill={color} />;
   };
@@ -98,7 +100,16 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   };
 
   const getGrowthAxisRange = (data: typeof activeWalletsData) => {
-    return { min: -1, max: 1 }; // Fixed domain of -1% to 1%
+    const values = data.map(item => item.growth).filter(v => v !== 0);
+    if (values.length === 0) return { min: -5, max: 5 }; // Default minimum range of ±5%
+
+    // Find the maximum absolute value in the data
+    const maxAbsValue = Math.max(...values.map(Math.abs));
+    // Ensure a minimum range of ±5%, but expand if the data exceeds this
+    const range = Math.max(5, maxAbsValue);
+    // Add a small padding (10% of the range) for better visualization
+    const padding = range * 0.1;
+    return { min: -range - padding, max: range + padding }; // Symmetric domain around 0%
   };
 
   const getTransactionsAxisRange = (data: typeof largeTransactionsData) => {
@@ -145,7 +156,6 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                   <XAxis
                     type="number"
                     domain={[growthRange.min, growthRange.max]}
-                    ticks={[-1, 0, 1]} // Explicitly set ticks to -1%, 0%, 1%
                     tickFormatter={(value) => `${value}%`}
                   />
                   <YAxis
