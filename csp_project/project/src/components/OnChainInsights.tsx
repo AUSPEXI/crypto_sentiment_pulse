@@ -1,8 +1,21 @@
 // src/components/OnChainInsights.tsx
 import React, { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { Bar } from 'react-chartjs-2';
+import { BarChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { fetchOnChainData } from '../utils/api';
 import { OnChainData } from '../types';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip as ChartJSTooltip,
+  Legend as ChartJSLegend,
+} from 'chart.js';
+
+// Register Chart.js components
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, ChartJSTooltip, ChartJSLegend);
 
 interface OnChainInsightsProps {
   selectedCoins: string[];
@@ -54,36 +67,17 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const value = payload[0].value;
-      const isGrowth = payload[0].dataKey === 'growth';
+      const isGrowth = payload[0].dataKey === 'transactions';
       return (
         <div className="bg-white p-3 rounded-lg shadow-md border border-gray-200">
           <p className="font-medium text-gray-900">{label}</p>
-          <p className={`text-sm ${isGrowth ? (value >= 0 ? 'text-green-600' : 'text-red-600') : 'text-blue-600'}`}>
-            {isGrowth ? <>{value >= 0 ? '+' : ''}{value.toFixed(2)}%</> : formatNumber(value)}
+          <p className={`text-sm ${isGrowth ? 'text-blue-600' : 'text-blue-600'}`}>
+            {isGrowth ? formatNumber(value) : formatNumber(value)}
           </p>
         </div>
       );
     }
     return null;
-  };
-
-  const GrowthBar = (props: any) => {
-    const { x, y, width, height, value, domainMin, domainMax } = props;
-    const color = value >= 0 ? '#22c55e' : '#ef4444';
-
-    // Calculate the domain range and the pixel positions
-    const domainRange = domainMax - domainMin;
-    const zeroPosition = x + (width * (0 - domainMin)) / domainRange; // Pixel position of 0%
-    const valuePosition = x + (width * (value - domainMin)) / domainRange; // Pixel position of the value
-
-    // Calculate bar width and starting position to always start at 0%
-    const barWidth = Math.abs(zeroPosition - valuePosition);
-    const xPos = value >= 0 ? zeroPosition : zeroPosition - barWidth; // Start at 0%, extend right or left
-
-    // Ensure a minimum width for visibility
-    const minWidth = Math.max(1, barWidth);
-
-    return <rect x={xPos} y={y} width={minWidth} height={height} fill={color} />;
   };
 
   const activeWalletsData = Object.entries(onChainData).map(([coin, data]) => ({
@@ -104,15 +98,12 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
 
   const getGrowthAxisRange = (data: typeof activeWalletsData) => {
     const values = data.map(item => item.growth).filter(v => v !== 0);
-    if (values.length === 0) return { min: -5, max: 5 }; // Default range of ±5%
+    if (values.length === 0) return { min: -5, max: 5 };
 
-    // Find the maximum absolute value in the data
     const maxAbsValue = Math.max(...values.map(Math.abs));
-    // Use a minimum range of ±5% as a realistic bound for wallet growth
-    const range = Math.max(5, maxAbsValue); // Ensure at least ±5% unless data exceeds it
-    // Add a small padding (10% of the range) for better visualization
+    const range = Math.max(5, maxAbsValue);
     const padding = range * 0.1;
-    return { min: -range - padding, max: range + padding }; // Symmetric domain around 0%
+    return { min: -range - padding, max: range + padding };
   };
 
   const getTransactionsAxisRange = (data: typeof largeTransactionsData) => {
@@ -127,15 +118,62 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   const growthRange = getGrowthAxisRange(activeWalletsData);
   const transactionsRange = getTransactionsAxisRange(largeTransactionsData);
 
-  // Calculate ticks for the X-axis to ensure 0% is the center marker
-  const tickInterval = (growthRange.max - growthRange.min) / 4; // Divide the range into 4 intervals
-  const ticks = [
-    growthRange.min,
-    growthRange.min + tickInterval,
-    0, // Explicitly include 0% as the center marker
-    growthRange.min + 3 * tickInterval,
-    growthRange.max,
-  ];
+  // Prepare data for Chart.js Active Wallet Growth chart
+  const labels = activeWalletsData.map(item => item.coin);
+  const growthValues = activeWalletsData.map(item => item.growth);
+
+  const chartData = {
+    labels: labels,
+    datasets: [
+      {
+        label: 'Growth (%)',
+        data: growthValues.map(value => ({
+          x: [0, value], // Start at 0, end at the value
+          y: labels[growthValues.indexOf(value)],
+        })),
+        backgroundColor: growthValues.map(value => (value >= 0 ? '#22c55e' : '#ef4444')),
+        borderWidth: 1,
+        barThickness: 20,
+      },
+    ],
+  };
+
+  const chartOptions = {
+    indexAxis: 'y' as const, // Horizontal bar chart
+    scales: {
+      x: {
+        min: growthRange.min,
+        max: growthRange.max,
+        ticks: {
+          callback: (value: number) => `${value}%`,
+        },
+        grid: {
+          display: true,
+          drawBorder: true,
+          drawOnChartArea: true,
+        },
+      },
+      y: {
+        grid: {
+          display: false,
+        },
+      },
+    },
+    plugins: {
+      legend: {
+        display: true,
+      },
+      tooltip: {
+        callbacks: {
+          label: (context: any) => {
+            const value = context.raw.x[1];
+            return `Growth: ${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
+          },
+        },
+      },
+    },
+    maintainAspectRatio: false,
+  };
 
   if (!selectedCoins.length) {
     return (
@@ -159,37 +197,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
           <div>
             <h3 className="text-md font-medium text-gray-700 mb-2">Active Wallet Growth</h3>
             <div style={{ height: `${chartHeight}px` }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={activeWalletsData}
-                  layout="vertical"
-                  margin={{ top: 10, right: 10, left: 60, bottom: 10 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    type="number"
-                    domain={[growthRange.min, growthRange.max]}
-                    ticks={ticks} // Use calculated ticks to ensure 0% is the center marker
-                    tickFormatter={(value) => `${value}%`}
-                  />
-                  <YAxis
-                    dataKey="coin"
-                    type="category"
-                    width={50}
-                    tickMargin={10}
-                    tick={{ dy: 8 }}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Legend />
-                  <ReferenceLine x={0} stroke="#666" strokeDasharray="3 3" />
-                  <Bar
-                    dataKey="growth"
-                    name="Growth (%)"
-                    shape={(props) => <GrowthBar {...props} domainMin={growthRange.min} domainMax={growthRange.max} />}
-                    barSize={40}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
+              <Bar data={chartData} options={chartOptions} />
             </div>
           </div>
           <div>
