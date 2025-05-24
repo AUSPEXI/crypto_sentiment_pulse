@@ -1,3 +1,4 @@
+// src/components/Header.tsx
 import React, { useState } from 'react';
 import { Activity, Github, Menu, X } from 'lucide-react';
 import Navigation from './Navigation';
