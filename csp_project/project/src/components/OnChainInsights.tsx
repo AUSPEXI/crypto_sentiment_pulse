@@ -78,25 +78,14 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   };
 
   const GrowthBar = (props: any) => {
-    const { x, y, width, height, value, payload } = props;
+    const { x, y, width, height, value } = props;
     const color = value >= 0 ? '#22c55e' : '#ef4444';
     const barHeight = Math.abs(height);
-    const yPos = value >= 0 ? y - barHeight : y;
-    const coin = payload?.coin || '';
+    const yPos = y;
 
     return (
       <g>
-        <rect x={x} y={yPos} width={width} height={barHeight} fill={color} />
-        <text
-          x={x + width / 2}
-          y={yPos + (value >= 0 ? -5 : barHeight + 15)}
-          textAnchor="middle"
-          fill="#333"
-          fontSize={12}
-          fontWeight="bold"
-        >
-          {coin}
-        </text>
+        <rect x={value >= 0 ? x : x + width - barHeight} y={yPos} width={barHeight} height={10} fill={color} />
       </g>
     );
   };
@@ -121,10 +110,6 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
     const maxAbsGrowth = Math.max(...data.map(item => Math.abs(item.growth)), 5);
     return { min: -maxAbsGrowth, max: maxAbsGrowth };
   };
-
-  console.log('onChainData:', onChainData);
-  console.log('activeWalletsData:', activeWalletsData);
-  console.log('largeTransactionsData:', largeTransactionsData);
 
   const chartHeight = getChartHeight(selectedCoins.length);
   const growthRange = getGrowthAxisRange(activeWalletsData);
@@ -183,6 +168,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                     dataKey="growth"
                     name="Growth (%)"
                     shape={<GrowthBar />}
+                    barSize={10}
                   />
                 </BarChart>
               </ResponsiveContainer>
@@ -211,6 +197,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                     dataKey="transactions"
                     name="Transactions"
                     fill="#3b82f6"
+                    barSize={10}
                   />
                 </BarChart>
               </ResponsiveContainer>
