@@ -71,9 +71,9 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
     const { x, y, width, height, value, domainMin, domainMax } = props;
     const color = value >= 0 ? '#22c55e' : '#ef4444';
     const domainRange = domainMax - domainMin;
-    const normalizedValue = value / (domainRange / 2); // Normalize value relative to the domain
-    const barWidth = Math.abs(width * normalizedValue); // Scale bar width based on normalized value
-    const xPos = value >= 0 ? x : x - barWidth;
+    const normalizedValue = Math.abs(value) / (Math.max(Math.abs(domainMin), Math.abs(domainMax))); // Normalize based on the max absolute domain value
+    const barWidth = width * normalizedValue; // Scale bar width proportionally
+    const xPos = value >= 0 ? x : x - barWidth; // Ensure symmetry around 0%
     return <rect x={xPos} y={y} width={barWidth} height={height} fill={color} />;
   };
 
@@ -95,12 +95,11 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
 
   const getGrowthAxisRange = (data: typeof activeWalletsData) => {
     const values = data.map(item => item.growth).filter(v => v !== 0);
-    if (values.length === 0) return { min: -0.5, max: 0.5 }; // Tighter default range for no data
+    if (values.length === 0) return { min: -0.5, max: 0.5 };
     const minValue = Math.min(...values);
     const maxValue = Math.max(...values);
     const maxAbsValue = Math.max(Math.abs(minValue), Math.abs(maxValue));
-    const padding = maxAbsValue * 0.05; // Minimal padding (5% of max absolute value)
-    // Ensure the range is at least ±0.5% to avoid overly tiny scales, but scale dynamically
+    const padding = maxAbsValue * 0.05;
     const adjustedMin = Math.min(minValue - padding, -0.5);
     const adjustedMax = Math.max(maxValue + padding, 0.5);
     return { min: adjustedMin, max: adjustedMax };
@@ -144,7 +143,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                 <BarChart
                   data={activeWalletsData}
                   layout="vertical"
-                  margin={{ top: 10, right: 40, left: 80, bottom: 10 }}
+                  margin={{ top: 10, right: 10, left: 60, bottom: 10 }} // Reduced right margin, adjusted left for balance
                 >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
@@ -155,7 +154,9 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                   <YAxis
                     dataKey="coin"
                     type="category"
-                    width={60}
+                    width={50} // Adjusted width for better alignment
+                    tickMargin={5}
+                    tick={{ dy: 8 }} // Fine-tune vertical alignment of ticker symbols
                   />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
@@ -164,7 +165,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                     dataKey="growth"
                     name="Growth (%)"
                     shape={(props) => <GrowthBar {...props} domainMin={growthRange.min} domainMax={growthRange.max} />}
-                    barSize={40} // Increased bar size for better visibility
+                    barSize={40}
                   />
                 </BarChart>
               </ResponsiveContainer>
@@ -177,7 +178,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                 <BarChart
                   data={largeTransactionsData}
                   layout="vertical"
-                  margin={{ top: 10, right: 20, left: 80, bottom: 10 }}
+                  margin={{ top: 10, right: 10, left: 60, bottom: 10 }} // Reduced right margin, adjusted left
                 >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
@@ -188,7 +189,9 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                   <YAxis
                     dataKey="coin"
                     type="category"
-                    width={60}
+                    width={50} // Adjusted width for better alignment
+                    tickMargin={5}
+                    tick={{ dy: 8 }} // Fine-tune vertical alignment of ticker symbols
                   />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
