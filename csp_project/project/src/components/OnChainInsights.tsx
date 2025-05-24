@@ -1,115 +1,213 @@
-// src/components/SentimentSnapshot.tsx
+// src/components/OnChainInsights.tsx
 import React, { useState, useEffect } from 'react';
-import { fetchSentimentData } from '../utils/api';
-import { SentimentData } from '../types';
-import SentimentSpeedometer from './SentimentSpeedometer';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { fetchOnChainData } from '../utils/api';
+import { OnChainData } from '../types';
 
-interface SentimentSnapshotProps {
+interface OnChainInsightsProps {
   selectedCoins: string[];
 }
 
-const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) => {
-  console.log('SentimentSnapshot updated version running');
-  const [sentimentData, setSentimentData] = useState<Record<string, SentimentData>>({});
+const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
+  console.log('OnChainInsights updated version running');
+  const [onChainData, setOnChainData] = useState<Record<string, OnChainData>>({});
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const defaultCoins = ['BTC', 'ETH', 'BNB', 'SOL', 'USDC', 'DOGE', 'ADA', 'TRX', 'AVAX'];
-  const coinsToFetch = selectedCoins.length > 0 ? selectedCoins : defaultCoins;
-
   useEffect(() => {
     const fetchData = async () => {
-      console.log('Fetching sentiment data for coins:', coinsToFetch);
+      console.log('Fetching on-chain data for coins:', selectedCoins);
       setLoading(true);
       setError(null);
 
       try {
-        const newData: Record<string, SentimentData> = {};
-        for (const coin of coinsToFetch) {
-          const data = await fetchSentimentData(coin);
-          console.log(`Sentiment data for ${coin}:`, data);
-          if (data && data.score !== undefined) {
+        const newData: Record<string, OnChainData> = {};
+        for (const coin of selectedCoins) {
+          const data = await fetchOnChainData(coin);
+          console.log(`Data for ${coin}:`, data);
+          if (data && data.activeWallets !== undefined && data.activeWalletsGrowth !== undefined && data.largeTransactions !== undefined) {
             newData[coin] = data;
           } else {
-            console.warn(`Incomplete sentiment data for ${coin}, skipping`);
+            console.warn(`Incomplete data for ${coin}, skipping`);
           }
         }
-        setSentimentData(newData);
+        setOnChainData(newData);
       } catch (err) {
-        console.error('Error fetching sentiment data:', err);
-        setError('Failed to fetch sentiment data. Please try again later.');
+        console.error('Error fetching on-chain data:', err);
+        setError('Failed to fetch on-chain data. Please try again later.');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
-    const intervalId = setInterval(fetchData, 60 * 60 * 1000);
-    return () => clearInterval(intervalId);
-  }, [coinsToFetch]);
+    if (selectedCoins.length > 0) {
+      fetchData();
+      const intervalId = setInterval(fetchData, 5 * 60 * 1000);
+      return () => clearInterval(intervalId);
+    } else {
+      setLoading(false);
+    }
+  }, [selectedCoins]);
 
-  const rows = Math.ceil(coinsToFetch.length / 3);
+  const formatNumber = (num: number): string => {
+    if (num >= 1e9) return `${(num / 1e9).toFixed(1)}B`;
+    if (num >= 1e6) return `${(num / 1e6).toFixed(1)}M`;
+    if (num >= 1e3) return `${(num / 1e3).toFixed(1)}K`;
+    return num.toString();
+  };
+
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const value = payload[0].value;
+      const isGrowth = payload[0].dataKey === 'growth';
+      return (
+        <div className="bg-white p-3 rounded-lg shadow-md border border-gray-200">
+          <p className="font-medium text-gray-900">{label}</p>
+          <p className={`text-sm ${isGrowth ? (value >= 0 ? 'text-green-600' : 'text-red-600') : 'text-blue-600'}`}>
+            {isGrowth ? <>{value >= 0 ? '+' : ''}{value.toFixed(2)}%</> : formatNumber(value)}
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const GrowthBar = (props: any) => {
+    const { x, y, width, height, value } = props;
+    const color = value >= 0 ? '#22c55e' : '#ef4444';
+    const barWidth = Math.abs(width);
+    const xPos = value >= 0 ? x : x - barWidth;
+    return <rect x={xPos} y={y} width={barWidth} height={10} fill={color} />;
+  };
+
+  const activeWalletsData = Object.entries(onChainData).map(([coin, data]) => ({
+    coin,
+    growth: data?.activeWalletsGrowth || 0,
+  }));
+
+  const largeTransactionsData = Object.entries(onChainData).map(([coin, data]) => ({
+    coin,
+    transactions: data?.largeTransactions || 0,
+  }));
+
+  const getChartHeight = (numCoins: number): number => {
+    const baseHeight = 150;
+    const heightPerCoin = 40;
+    return Math.max(baseHeight, numCoins * heightPerCoin);
+  };
+
+  const getGrowthAxisRange = (data: typeof activeWalletsData) => {
+    const values = data.map(item => item.growth).filter(v => v !== 0);
+    if (values.length === 0) return { min: -5, max: 5 };
+    const minValue = Math.min(...values);
+    const maxValue = Math.max(...values);
+    const padding = Math.max(Math.abs(minValue), Math.abs(maxValue)) * 0.2;
+    return { min: minValue < 0 ? minValue - padding : -padding, max: maxValue > 0 ? maxValue + padding : padding };
+  };
+
+  const getTransactionsAxisRange = (data: typeof largeTransactionsData) => {
+    const values = data.map(item => item.transactions).filter(v => v !== 0);
+    if (values.length === 0) return [0, 1000];
+    const maxValue = Math.max(...values);
+    const padding = maxValue * 0.2;
+    return [0, maxValue + padding];
+  };
+
+  const chartHeight = getChartHeight(selectedCoins.length);
+  const growthRange = getGrowthAxisRange(activeWalletsData);
+  const transactionsRange = getTransactionsAxisRange(largeTransactionsData);
+
+  const rows = Math.ceil(selectedCoins.length / 3);
   const containerHeight = rows * 200;
 
-  if (selectedCoins.length === 0 && !loading && !error && Object.keys(sentimentData).length === 0) {
+  if (!selectedCoins.length) {
     return (
       <div className="bg-white rounded-lg shadow-md p-4">
-        <h2 className="text-lg font-semibold text-blue-800 mb-4">Sentiment Snapshot</h2>
-        <p className="text-gray-500">Loading default coin data...</p>
+        <h2 className="text-lg font-semibold text-blue-800 mb-4">On-Chain Insights</h2>
+        <p className="text-gray-500">Please select at least one coin to view on-chain insights.</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-4">
-      <h2 className="text-lg font-semibold text-blue-800 mb-4">Sentiment Snapshot</h2>
-      {loading && <p className="text-gray-500">Loading sentiment data...</p>}
+    <div className="bg-white rounded-lg shadow-md p-4" style={{ height: `${containerHeight}px` }}>
+      <h2 className="text-lg font-semibold text-blue-800 mb-4">On-Chain Insights</h2>
+      {loading && <p className="text-gray-500">Loading on-chain data...</p>}
       {error && <div className="bg-red-100 text-red-700 p-3 rounded-md mb-4">{error}</div>}
-      {!loading && !error && Object.keys(sentimentData).length === 0 && (
-        <p className="text-gray-500">No sentiment data available for the selected coins.</p>
+      {!loading && !error && Object.keys(onChainData).length === 0 && (
+        <p className="text-gray-500">No on-chain data available for the selected coins.</p>
       )}
-      {!loading && !error && Object.keys(sentimentData).length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" style={{ height: `${containerHeight}px` }}>
-          {coinsToFetch.map(coin => {
-            const data = sentimentData[coin];
-            if (!data || data.score === undefined) {
+      {!loading && !error && Object.keys(onChainData).length > 0 && (
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-md font-medium text-gray-700 mb-2">Active Wallet Growth</h3>
+            <div style={{ height: `${chartHeight}px` }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={activeWalletsData} layout="vertical" margin={{ top: 10, right: 20, left: 80, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" domain={[growthRange.min, growthRange.max]} tickFormatter={(value) => `${value.toFixed(1)}%`} />
+                  <YAxis dataKey="coin" type="category" width={60} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend />
+                  <ReferenceLine x={0} stroke="#666" />
+                  <Bar dataKey="growth" name="Growth (%)" shape={<GrowthBar />} barSize={10} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          <div>
+            <h3 className="text-md font-medium text-gray-700 mb-2">Large Transactions</h3>
+            <div style={{ height: `${chartHeight}px` }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={largeTransactionsData} layout="vertical" margin={{ top: 10, right: 20, left: 80, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" domain={transactionsRange} tickFormatter={formatNumber} />
+                  <YAxis dataKey="coin" type="category" width={60} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend />
+                  <Bar dataKey="transactions" name="Transactions" fill="#3b82f6" barSize={10} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {selectedCoins.map(coin => {
+              const data = onChainData[coin];
+              if (!data || data.activeWallets === undefined || data.activeWalletsGrowth === undefined || data.largeTransactions === undefined) {
+                return (
+                  <div key={coin} className="bg-gray-50 p-3 rounded-md">
+                    <h3 className="font-medium text-gray-800">{coin} On-Chain Data</h3>
+                    <p className="text-sm text-gray-600 mt-2">Data unavailable</p>
+                  </div>
+                );
+              }
               return (
                 <div key={coin} className="bg-gray-50 p-3 rounded-md">
-                  <h3 className="font-medium text-gray-800">{coin}</h3>
-                  <p className="text-sm text-gray-600 mt-2">Data unavailable</p>
+                  <h3 className="font-medium text-gray-800">{coin} On-Chain Data</h3>
+                  <div className="mt-2 space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Active Wallets:</span>
+                      <span className="text-sm font-medium text-blue-600">{formatNumber(data.activeWallets)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Growth:</span>
+                      <span className={`text-sm font-medium ${data.activeWalletsGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {data.activeWalletsGrowth >= 0 ? '+' : ''}{data.activeWalletsGrowth.toFixed(2)}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Large Transactions:</span>
+                      <span className="text-sm font-medium text-purple-600">{formatNumber(data.largeTransactions)}</span>
+                    </div>
+                  </div>
                 </div>
               );
-            }
-            const speedometerValue = ((data.score + 10) / 20) * 100;
-            return (
-              <div key={coin} className="bg-gray-50 p-3 rounded-md flex flex-col items-center">
-                <h3 className="font-medium text-gray-800 mb-2">{coin}</h3>
-                <SentimentSpeedometer value={speedometerValue} timestamp={data.timestamp} size={150} />
-                <div className="mt-2 text-sm text-gray-600 text-center w-full">
-                  <div className="flex justify-between">
-                    <span>Positive:</span>
-                    <span>{((speedometerValue > 50 ? (speedometerValue - 50) * 2 : 0).toFixed(2))}%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Negative:</span>
-                    <span>{(speedometerValue < 50 ? (50 - speedometerValue) * 2 : 0).toFixed(2)}%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Neutral:</span>
-                    <span>{(Math.abs(50 - speedometerValue) === 50 ? 100 : 0).toFixed(2)}%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Last updated:</span>
-                    <span>{new Date(data.timestamp).toLocaleString()}</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+            })}
+          </div>
         </div>
       )}
     </div>
   );
 };
 
-export default SentimentSnapshot;
+export default OnChainInsights;
