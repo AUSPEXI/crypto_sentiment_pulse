@@ -54,9 +54,9 @@ const SentimentSpeedometer: React.FC<SentimentSpeedometerProps> = ({ value, size
 
     svg.append('text')
       .attr('x', center)
-      .attr('y', center + 10)
+      .attr('y', center + 20) // Adjusted from center + 10 to center + 20 to place inside the arc
       .attr('text-anchor', 'middle')
-      .style('font-size', '2em')
+      .style('font-size', '1.5em') // Reduced from 2em to 1.5em to fit better
       .style('font-weight', 'bold')
       .style('fill', colorScale(value))
       .text(Math.round(value));
