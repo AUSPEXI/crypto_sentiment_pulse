@@ -112,7 +112,7 @@ export const fetchSentimentData = async (coin: string): Promise<SentimentData> =
 
     // Use OpenAI to analyze sentiment
     const response = await axios.post(
-      '[invalid url, do not cite]
+      'https://api.openai.com/v1/completions',
       {
         model: 'text-davinci-003',
         prompt: `Analyze the sentiment of the following text about ${coin} and provide a sentiment score between -10 (very negative) and 10 (very positive):\n\n${newsText}`,
@@ -155,7 +155,7 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
   try {
     // Use Hugging Face to estimate on-chain metrics (mocked API call)
     const response = await axios.post(
-      '[invalid url, do not cite] // Replace with your actual model
+      'https://api-inference.huggingface.co/models/your-model-name', // Replace with your actual model
       {
         inputs: `Estimate on-chain metrics for ${coin} based on historical data. Return active wallets, growth percentage, and large transactions.`
       },
@@ -195,7 +195,7 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
 
 export const fetchEvents = async (): Promise<Event[]> => {
   try {
-    const response = await axios.get('[invalid url, do not cite] {
+    const response = await axios.get('https://cryptopanic.com/api/v1/posts/', {
       params: {
         auth_token: import.meta.env.VITE_CRYPTOPANIC_API_TOKEN,
         public: true,
