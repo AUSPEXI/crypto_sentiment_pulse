@@ -80,12 +80,12 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   const GrowthBar = (props: any) => {
     const { x, y, width, height, value } = props;
     const color = value >= 0 ? '#22c55e' : '#ef4444';
-    const barHeight = Math.abs(height);
-    const yPos = y;
+    const barWidth = Math.abs(width); // Use width instead of height for horizontal bars
+    const xPos = value >= 0 ? x : x - barWidth; // Adjust position based on value
 
     return (
       <g>
-        <rect x={value >= 0 ? x : x + width - barHeight} y={yPos} width={barHeight} height={10} fill={color} />
+        <rect x={xPos} y={y} width={barWidth} height={10} fill={color} />
       </g>
     );
   };
@@ -101,29 +101,35 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   }));
 
   const getChartHeight = (numCoins: number): number => {
-    const baseHeight = 250;
-    const heightPerCoin = 60;
+    const baseHeight = 150; // Reduced base height to fit better
+    const heightPerCoin = 40; // Reduced height per coin
     return Math.max(baseHeight, numCoins * heightPerCoin);
   };
 
   const getGrowthAxisRange = (data: typeof activeWalletsData) => {
-    const values = data.map(item => item.growth);
-    const minValue = Math.min(...values, -5);
-    const maxValue = Math.max(...values, 5);
-    const padding = (maxValue - minValue) * 0.1; // Add 10% padding
-    return { min: minValue - padding, max: maxValue + padding };
+    const values = data.map(item => item.growth).filter(v => v !== 0);
+    if (values.length === 0) return { min: -5, max: 5 };
+    const minValue = Math.min(...values);
+    const maxValue = Math.max(...values);
+    const padding = Math.max(Math.abs(minValue), Math.abs(maxValue)) * 0.2; // 20% padding
+    return { min: minValue < 0 ? minValue - padding : -padding, max: maxValue > 0 ? maxValue + padding : padding };
   };
 
   const getTransactionsAxisRange = (data: typeof largeTransactionsData) => {
-    const values = data.map(item => item.transactions);
-    const maxValue = Math.max(...values, 1);
-    const padding = maxValue * 0.1; // Add 10% padding
+    const values = data.map(item => item.transactions).filter(v => v !== 0);
+    if (values.length === 0) return [0, 1000];
+    const maxValue = Math.max(...values);
+    const padding = maxValue * 0.2; // 20% padding
     return [0, maxValue + padding];
   };
 
   const chartHeight = getChartHeight(selectedCoins.length);
   const growthRange = getGrowthAxisRange(activeWalletsData);
   const transactionsRange = getTransactionsAxisRange(largeTransactionsData);
+
+  // Calculate total height to match SentimentSnapshot
+  const rows = Math.ceil(selectedCoins.length / 3);
+  const containerHeight = rows * 200;
 
   if (!selectedCoins.length) {
     return (
@@ -135,7 +141,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-4" style={{ minHeight: '600px' }}> {/* Match SentimentSnapshot height */}
+    <div className="bg-white rounded-lg shadow-md p-4" style={{ height: `${containerHeight}px` }}>
       <h2 className="text-lg font-semibold text-blue-800 mb-4">On-Chain Insights</h2>
 
       {loading && <p className="text-gray-500">Loading on-chain data...</p>}
@@ -159,7 +165,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                 <BarChart
                   data={activeWalletsData}
                   layout="vertical"
-                  margin={{ top: 20, right: 30, left: 100, bottom: 5 }}
+                  margin={{ top: 10, right: 20, left: 80, bottom: 10 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
@@ -170,7 +176,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                   <YAxis
                     dataKey="coin"
                     type="category"
-                    width={80}
+                    width={60}
                   />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
@@ -193,7 +199,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                 <BarChart
                   data={largeTransactionsData}
                   layout="vertical"
-                  margin={{ top: 20, right: 30, left: 100, bottom: 5 }}
+                  margin={{ top: 10, right: 20, left: 80, bottom: 10 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
@@ -204,7 +210,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                   <YAxis
                     dataKey="coin"
                     type="category"
-                    width={80}
+                    width={60}
                   />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
