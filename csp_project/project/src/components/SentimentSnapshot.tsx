@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { fetchSentimentData } from '../utils/api';
 import { SentimentData } from '../types';
+import SentimentSpeedometer from './SentimentSpeedometer';
 
 interface SentimentSnapshotProps {
   selectedCoins: string[];
@@ -82,21 +83,39 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
             if (!data || data.score === undefined) {
               return (
                 <div key={coin} className="bg-gray-50 p-3 rounded-md">
-                  <h3 className="font-medium text-gray-800">{coin} Sentiment</h3>
+                  <h3 className="font-medium text-gray-800">{coin}</h3>
                   <p className="text-sm text-gray-600 mt-2">Data unavailable</p>
                 </div>
               );
             }
 
+            // Convert score to 0-100 range for speedometer (assuming -10 to 10 maps to 0 to 100)
+            const speedometerValue = ((data.score + 10) / 20) * 100;
+
             return (
               <div key={coin} className="bg-gray-50 p-3 rounded-md">
-                <h3 className="font-medium text-gray-800">{coin} Sentiment</h3>
-                <div className="mt-2">
+                <h3 className="font-medium text-gray-800">{coin}</h3>
+                <SentimentSpeedometer
+                  value={speedometerValue}
+                  timestamp={data.timestamp}
+                  size={150}
+                />
+                <div className="mt-2 text-sm text-gray-600">
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Score:</span>
-                    <span className={`text-sm font-medium ${data.score >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {data.score.toFixed(1)}
-                    </span>
+                    <span>Positive:</span>
+                    <span>{((speedometerValue > 50 ? (speedometerValue - 50) * 2 : 0).toFixed(2))}%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Negative:</span>
+                    <span>{(speedometerValue < 50 ? (50 - speedometerValue) * 2 : 0).toFixed(2)}%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Neutral:</span>
+                    <span>{(Math.abs(50 - speedometerValue) === 50 ? 100 : 0).toFixed(2)}%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Last updated:</span>
+                    <span>{new Date(data.timestamp).toLocaleString()}</span>
                   </div>
                 </div>
               </div>
