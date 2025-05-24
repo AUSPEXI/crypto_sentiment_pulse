@@ -5,10 +5,9 @@ import * as d3 from 'd3';
 interface SentimentSpeedometerProps {
   value: number;
   size?: number;
-  timestamp?: string;
 }
 
-const SentimentSpeedometer: React.FC<SentimentSpeedometerProps> = ({ value, size = 150, timestamp }) => {
+const SentimentSpeedometer: React.FC<SentimentSpeedometerProps> = ({ value, size = 180 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
@@ -26,13 +25,13 @@ const SentimentSpeedometer: React.FC<SentimentSpeedometerProps> = ({ value, size
       .range([-Math.PI / 2, Math.PI / 2]);
 
     const backgroundArc = d3.arc()
-      .innerRadius(radius - 20)
+      .innerRadius(radius * 0.6)
       .outerRadius(radius)
       .startAngle(-Math.PI / 2)
       .endAngle(Math.PI / 2);
 
     const valueArc = d3.arc()
-      .innerRadius(radius - 20)
+      .innerRadius(radius * 0.6)
       .outerRadius(radius)
       .startAngle(-Math.PI / 2)
       .endAngle(scale(value));
@@ -57,29 +56,19 @@ const SentimentSpeedometer: React.FC<SentimentSpeedometerProps> = ({ value, size
       .attr('x', center)
       .attr('y', center + 10)
       .attr('text-anchor', 'middle')
-      .style('font-size', '28px')
+      .style('font-size', '2em')
       .style('font-weight', 'bold')
       .style('fill', colorScale(value))
       .text(Math.round(value));
 
     svg.append('text')
       .attr('x', center)
-      .attr('y', center - 20)
+      .attr('y', center - 30)
       .attr('text-anchor', 'middle')
-      .style('font-size', '12px')
+      .style('font-size', '0.75em')
       .style('fill', '#6b7280')
       .text('Sentiment Score');
-
-    if (timestamp) {
-      svg.append('text')
-        .attr('x', center)
-        .attr('y', center + 40)
-        .attr('text-anchor', 'middle')
-        .style('font-size', '10px')
-        .style('fill', '#6b7280')
-        .text(`Last updated: ${new Date(timestamp).toLocaleString()}`);
-    }
-  }, [value, size, timestamp]);
+  }, [value, size]);
 
   return <svg ref={svgRef} width={size} height={size} className="mx-auto" />;
 };
