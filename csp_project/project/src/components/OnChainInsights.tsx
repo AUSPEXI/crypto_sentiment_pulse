@@ -78,7 +78,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
 
     // Calculate bar width and position to start at 0% and extend to the value
     const barWidth = Math.abs(centerX - valuePosition);
-    const xPos = value >= 0 ? centerX : valuePosition; // Start at 0%, extend right for positive, left for negative
+    const xPos = value >= 0 ? centerX : centerX - barWidth; // Start at 0%, extend right for positive, left for negative
 
     return <rect x={xPos} y={y} width={barWidth} height={height} fill={color} />;
   };
@@ -124,6 +124,16 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   const growthRange = getGrowthAxisRange(activeWalletsData);
   const transactionsRange = getTransactionsAxisRange(largeTransactionsData);
 
+  // Calculate ticks for the X-axis to ensure 0% is included and centered
+  const tickInterval = (growthRange.max - growthRange.min) / 4; // Divide the range into 4 intervals
+  const ticks = [
+    growthRange.min,
+    growthRange.min + tickInterval,
+    0, // Explicitly include 0% as the center marker
+    growthRange.min + 3 * tickInterval,
+    growthRange.max,
+  ];
+
   if (!selectedCoins.length) {
     return (
       <div className="bg-white rounded-lg shadow-md p-4">
@@ -156,6 +166,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                   <XAxis
                     type="number"
                     domain={[growthRange.min, growthRange.max]}
+                    ticks={ticks} // Use calculated ticks to ensure 0% is the center marker
                     tickFormatter={(value) => `${value}%`}
                   />
                   <YAxis
