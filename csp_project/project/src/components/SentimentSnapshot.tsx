@@ -14,7 +14,8 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
   const [error, setError] = useState<string | null>(null);
 
   // Default to 9 coins if none selected
-  const coinsToFetch = selectedCoins.length > 0 ? selectedCoins : ['BTC', 'ETH', 'BNB', 'SOL', 'USDC', 'DOGE', 'ADA', 'TRX', 'AVAX'];
+  const defaultCoins = ['BTC', 'ETH', 'BNB', 'SOL', 'USDC', 'DOGE', 'ADA', 'TRX', 'AVAX'];
+  const coinsToFetch = selectedCoins.length > 0 ? selectedCoins : defaultCoins;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -47,6 +48,10 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
     return () => clearInterval(intervalId);
   }, [coinsToFetch]);
 
+  // Calculate height based on number of coins (3 per row, 200px per row)
+  const rows = Math.ceil(coinsToFetch.length / 3);
+  const containerHeight = rows * 200; // 200px per row
+
   if (selectedCoins.length === 0 && !loading && !error && Object.keys(sentimentData).length === 0) {
     return (
       <div className="bg-white rounded-lg shadow-md p-4">
@@ -73,7 +78,7 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
       )}
 
       {!loading && !error && Object.keys(sentimentData).length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" style={{ minHeight: '600px' }}> {/* Fixed height for alignment */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" style={{ height: `${containerHeight}px` }}>
           {coinsToFetch.map(coin => {
             const data = sentimentData[coin];
             if (!data || data.score === undefined) {
@@ -96,19 +101,19 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
                   size={150}
                 />
                 <div className="mt-2 text-sm text-gray-600 text-center">
-                  <div className="flex justify-between">
+                  <div className="flex justify-between w-full">
                     <span>Positive:</span>
                     <span>{((speedometerValue > 50 ? (speedometerValue - 50) * 2 : 0).toFixed(2))}%</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between w-full">
                     <span>Negative:</span>
                     <span>{(speedometerValue < 50 ? (50 - speedometerValue) * 2 : 0).toFixed(2)}%</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between w-full">
                     <span>Neutral:</span>
                     <span>{(Math.abs(50 - speedometerValue) === 50 ? 100 : 0).toFixed(2)}%</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between w-full">
                     <span>Last updated:</span>
                     <span>{new Date(data.timestamp).toLocaleString()}</span>
                   </div>
