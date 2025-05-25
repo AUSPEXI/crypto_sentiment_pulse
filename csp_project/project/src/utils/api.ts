@@ -96,11 +96,17 @@ const makeProxiedRequest = async (api: string, endpoint: string, params: any) =>
   console.log(`Making proxied request to ${api}/${endpoint} with params:`, params);
   try {
     const response = await axios.get(proxyUrl, {
-      params: { api, endpoint, params: JSON.stringify(params) },
+      params: {
+        api,
+        endpoint,
+        params: JSON.stringify(params),
+      },
       timeout: 10000,
     });
+    console.log(`Proxy response for ${api}/${endpoint}:`, response.data);
     return response.data;
   } catch (error) {
+    console.error(`Proxied request failed for ${api}/${endpoint}:`, error.response?.data || error.message);
     throw new Error(`Proxied request failed: ${error.response?.data?.error || error.message}`);
   }
 };
