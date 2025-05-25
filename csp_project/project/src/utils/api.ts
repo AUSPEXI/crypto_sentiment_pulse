@@ -34,6 +34,7 @@ STATIC_COINS.forEach(coin => {
     coinMetrics: coin.symbol.toLowerCase()
   };
 });
+SUPPORTED_COINS['USDT'] = { coingecko: 'usd-coin', cryptoPanic: 'usdt', coinMetrics: 'tether' };
 
 export const getSupportedCoins = () => Object.keys(SUPPORTED_COINS);
 
@@ -91,7 +92,7 @@ const fetchRecentNews = async (coin: string): Promise<string> => {
       }
     });
     const newsItems = response.data.data || [];
-    const coinRegex = new RegExp(`\\b${coin}\\b`, 'i');
+    const coinRegex = new RegExp(coin, 'i'); // Relaxed regex
     const relevantNews = newsItems
       .filter((item: any) => coinRegex.test(item.title))
       .map((item: any) => item.title)
@@ -162,19 +163,12 @@ export const fetchSentimentData = async (coin: string): Promise<SentimentData> =
 
   try {
     const newsText = await fetchRecentNews(coin);
-
-    const response = await axios.post(
+    const newsResponse = await axios.post(
       'https://api.openai.com/v1/completions',
-      {
-        model: 'text-davinci-003',
-        prompt: `Analyze the sentiment of the following text about ${coin} and provide a score between -10 (very negative) and 10 (very positive):\n\n${newsText}`,
-        max_tokens: 60,
-        temperature: 0.5,
-      },
-      { headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' } },
+      { model: 'text-davinci-003', prompt: `Analyze the sentiment of the following text about ${coin} and provide a score between -10 (very negative) and 10 (very positive):\n\n${newsText}`, max_tokens: 60, temperature: 0.5 },
+      { headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' } }
     );
-    const sentimentText = response.data.choices[0].text.trim();
-    const newsScore = parseFloat(sentimentText) || 0;
+    const newsScore = parseFloat(newsResponse.data.choices[0].text.trim()) || 0;
 
     const onChainData = await fetchOnChainData(coin);
     const normalizedWalletGrowth = Math.min(Math.max(onChainData.activeWalletsGrowth / 10, -1), 1);
@@ -185,24 +179,19 @@ export const fetchSentimentData = async (coin: string): Promise<SentimentData> =
     const sentimentScore = (0.5 * newsScore) + (0.2 * normalizedWalletGrowth * 10) + (0.2 * normalizedLargeTransactions * 10) + (0.1 * socialScore);
     const finalScore = Math.min(Math.max(sentimentScore, -10), 10);
 
-    return {
-      coin,
-      score: finalScore,
-      socialScore,
-      timestamp: new Date().toISOString(),
-    };
+    console.log(`Sentiment for ${coin}: News=${newsScore}, WalletGrowth=${normalizedWalletGrowth * 10}, LargeTx=${normalizedLargeTransactions * 10}, Social=${socialScore}, Total=${finalScore}`);
+    return { coin, score: finalScore, socialScore, timestamp: new Date().toISOString() };
   } catch (error) {
     console.error(`Error fetching sentiment for ${coin}, falling back to static data:`, error);
     const staticScore = STATIC_PRICE_CHANGES[coin] || 0;
+    console.log(`Sentiment fallback for ${coin}: Static=${staticScore}`);
     return { coin, score: staticScore, timestamp: new Date().toISOString() };
   }
 };
 
 export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
   const coinInfo = SUPPORTED_COINS[coin];
-  if (!coinInfo) {
-    throw new Error(`Unsupported coin: ${coin}`);
-  }
+  if (!coinInfo) throw new Error(`Unsupported coin: ${coin}`);
 
   try {
     const endTime = new Date().toISOString().split('T')[0];
@@ -218,35 +207,19 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
     });
 
     const data = response.data.data;
-    if (!data || data.length < 2) {
-      throw new Error('Insufficient data from CoinMetrics');
-    }
+    if (!data || data.length < 2) throw new Error('Insufficient data from CoinMetrics');
 
     const latest = data[data.length - 1];
     const activeWallets = parseInt(latest.AdrActCnt, 10) || 0;
-
     const previous = data[0];
     const previousWallets = parseInt(previous.AdrActCnt, 10) || 0;
     const activeWalletsGrowth = previousWallets > 0 ? ((activeWallets - previousWallets) / previousWallets) * 100 : 0;
-
     const largeTransactions = parseInt(latest.TxCnt, 10) || 0;
 
-    return {
-      coin,
-      activeWallets,
-      activeWalletsGrowth,
-      largeTransactions,
-      timestamp: new Date().toISOString()
-    };
+    return { coin, activeWallets, activeWalletsGrowth, largeTransactions, timestamp: new Date().toISOString() };
   } catch (error) {
-    console.error(`Error fetching on-chain data for ${coin} via CoinMetrics, falling back to static data:`, error);
-    const staticData = STATIC_WALLET_DATA[coin] || {
-      coin,
-      activeWallets: 0,
-      activeWalletsGrowth: 0,
-      largeTransactions: 0,
-      timestamp: new Date().toISOString()
-    };
+    console.error(`Error fetching on-chain data for ${coin} via CoinMetrics:`, error);
+    const staticData = STATIC_WALLET_DATA[coin] || { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: new Date().toISOString() };
     return staticData;
   }
 };
