@@ -1,5 +1,5 @@
-// src/utils/api.ts
 import axios from 'axios';
+import { parseStringPromise } from 'xml2js';
 import { SentimentData, OnChainData, Event } from '../types';
 
 // Static list of top 20 coins (May 2025, based on market cap trends)
@@ -81,22 +81,78 @@ const STATIC_NEWS: Event[] = [
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 const HUGGINGFACE_API_KEY = import.meta.env.VITE_HUGGINGFACE_API_KEY;
 
-// Helper to fetch recent news or social media posts for sentiment analysis (mocked for simplicity)
+// Helper to fetch recent news from CoinGecko
 const fetchRecentNews = async (coin: string): Promise<string> => {
   try {
-    const response = await axios.get('https://cryptopanic.com/api/v1/posts/', {
+    const response = await axios.get('https://api.coingecko.com/api/v3/news', {
       params: {
-        auth_token: import.meta.env.VITE_CRYPTOPANIC_API_TOKEN,
-        public: true,
-        kind: 'news',
-        filter: 'hot',
-        currencies: coin
+        category: 'crypto',
+        limit: 10
       }
     });
-    return response.data.results.map((item: any) => item.title).join(' ') || `No recent news for ${coin}`;
+    const newsItems = response.data.data || [];
+    const coinRegex = new RegExp(`\\b${coin}\\b`, 'i');
+    const relevantNews = newsItems
+      .filter((item: any) => coinRegex.test(item.title))
+      .map((item: any) => item.title)
+      .slice(0, 5);
+    return relevantNews.join(' ') || `No recent news for ${coin}`;
   } catch (error) {
-    console.error(`Failed to fetch news for ${coin}:`, error);
+    console.error(`Failed to fetch news for ${coin} via CoinGecko:`, error);
     return STATIC_NEWS.find(event => event.coin === coin)?.title || `No recent news for ${coin}`;
+  }
+};
+
+// Fetch social sentiment from Reddit r/cryptocurrency with eight-shot prompting
+const fetchSocialSentiment = async (coin: string): Promise<number> => {
+  try {
+    const response = await axios.get('https://www.reddit.com/r/cryptocurrency/.rss', {
+      headers: { 'User-Agent': 'CryptoSentimentPulse/1.0' }
+    });
+
+    const xmlData = await parseStringPromise(response.data);
+    const items = xmlData.feed.entry || [];
+
+    const coinRegex = new RegExp(`\\b${coin}\\b`, 'i');
+    const relevantPosts = items
+      .filter((item: any) => coinRegex.test(item.title?.[0] || ''))
+      .slice(0, 5)
+      .map((item: any) => item.title?.[0] || '');
+
+    if (relevantPosts.length === 0) {
+      return 0;
+    }
+
+    const fewShotExamples = [
+      "Instruction: Analyze sentiment of 'BTC price up 5% today!'\n### Answer: 7",
+      "Instruction: Analyze sentiment of 'ETH crash incoming'\n### Answer: -6",
+      "Instruction: Analyze sentiment of 'SOL network stable'\n### Answer: 4",
+      "Instruction: Analyze sentiment of 'XRP lawsuit news'\n### Answer: -3",
+      "Instruction: Analyze sentiment of 'ADA great project'\n### Answer: 6",
+      "Instruction: Analyze sentiment of 'DOGE to the moon'\n### Answer: 8",
+      "Instruction: Analyze sentiment of 'SHIB scam alert'\n### Answer: -8",
+      "Instruction: Analyze sentiment of 'LTC steady gains'\n### Answer: 5"
+    ].join('\n\n');
+
+    const prompt = `${fewShotExamples}\n\nInstruction: Analyze the sentiment of the following Reddit post titles about ${coin} and provide a score between -10 (very negative) and 10 (very positive):\n\n${relevantPosts.join('\n')}\n### Answer:`;
+
+    const sentimentResponse = await axios.post(
+      'https://api.openai.com/v1/completions',
+      {
+        model: 'text-davinci-003',
+        prompt,
+        max_tokens: 60,
+        temperature: 0.5,
+      },
+      { headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' } }
+    );
+
+    const sentimentText = sentimentResponse.data.choices[0].text.trim();
+    const socialScore = parseFloat(sentimentText) || 0;
+    return Math.min(Math.max(socialScore, -10), 10);
+  } catch (error) {
+    console.error(`Error fetching social sentiment for ${coin} from Reddit:`, error);
+    return 0;
   }
 };
 
@@ -105,10 +161,8 @@ export const fetchSentimentData = async (coin: string): Promise<SentimentData> =
   if (!coinInfo) throw new Error(`Unsupported coin: ${coin}`);
 
   try {
-    // Fetch news text
     const newsText = await fetchRecentNews(coin);
 
-    // Analyze news sentiment with OpenAI
     const response = await axios.post(
       'https://api.openai.com/v1/completions',
       {
@@ -122,42 +176,25 @@ export const fetchSentimentData = async (coin: string): Promise<SentimentData> =
     const sentimentText = response.data.choices[0].text.trim();
     const newsScore = parseFloat(sentimentText) || 0;
 
-    // Fetch on-chain data
     const onChainData = await fetchOnChainData(coin);
-    const normalizedWalletGrowth = Math.min(Math.max(onChainData.activeWalletsGrowth / 10, -1), 1); // -1 to 1
-    const normalizedLargeTransactions = Math.min(onChainData.largeTransactions / 5000, 1); // 0 to 1
+    const normalizedWalletGrowth = Math.min(Math.max(onChainData.activeWalletsGrowth / 10, -1), 1);
+    const normalizedLargeTransactions = Math.min(onChainData.largeTransactions / 5000, 1);
 
-    // Fetch social sentiment
     const socialScore = await fetchSocialSentiment(coin);
 
-    // Combine scores with weights
     const sentimentScore = (0.5 * newsScore) + (0.2 * normalizedWalletGrowth * 10) + (0.2 * normalizedLargeTransactions * 10) + (0.1 * socialScore);
-    const finalScore = Math.min(Math.max(sentimentScore, -10), 10); // Clamp to -10 to 10
+    const finalScore = Math.min(Math.max(sentimentScore, -10), 10);
 
     return {
       coin,
       score: finalScore,
-      socialScore, // Optional, for debugging
+      socialScore,
       timestamp: new Date().toISOString(),
     };
   } catch (error) {
     console.error(`Error fetching sentiment for ${coin}, falling back to static data:`, error);
     const staticScore = STATIC_PRICE_CHANGES[coin] || 0;
     return { coin, score: staticScore, timestamp: new Date().toISOString() };
-  }
-};
-
-const fetchSocialSentiment = async (coin: string): Promise<number> => {
-  try {
-    const response = await axios.get(`https://api.coingecko.com/api/v3/coins/${SUPPORTED_COINS[coin].coingecko}`, {
-      params: { localization: false, community_data: true },
-    });
-    const sentiment = response.data.community_data.positive_sentiment_percentage || 50; // 0-100
-    // Convert to -10 to 10 (e.g., 75% -> 5, 25% -> -5)
-    return (sentiment - 50) / 5;
-  } catch (error) {
-    console.error(`Error fetching social sentiment for ${coin}:`, error);
-    return 0; // Neutral fallback
   }
 };
 
@@ -168,25 +205,31 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
   }
 
   try {
-    // Use Hugging Face to estimate on-chain metrics (mocked API call)
-    const response = await axios.post(
-      'https://api-inference.huggingface.co/models/your-model-name', // Replace with your actual model
-      {
-        inputs: `Estimate on-chain metrics for ${coin} based on historical data. Return active wallets, growth percentage, and large transactions.`,
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${HUGGINGFACE_API_KEY}`,
-          'Content-Type': 'application/json'
-        }
+    const endTime = new Date().toISOString().split('T')[0];
+    const startTime = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const response = await axios.get('https://community-api.coinmetrics.io/v4/timeseries/asset-metrics', {
+      params: {
+        assets: coinInfo.coinMetrics,
+        metrics: 'AdrActCnt,TxCnt',
+        start_time: startTime,
+        end_time: endTime,
+        frequency: '1d'
       }
-    );
+    });
 
-    // Parse Hugging Face response (example format)
-    const data = response.data[0];
-    const activeWallets = parseInt(data.activeWallets, 10) || 0;
-    const activeWalletsGrowth = parseFloat(data.growth) || 0;
-    const largeTransactions = parseInt(data.largeTransactions, 10) || 0;
+    const data = response.data.data;
+    if (!data || data.length < 2) {
+      throw new Error('Insufficient data from CoinMetrics');
+    }
+
+    const latest = data[data.length - 1];
+    const activeWallets = parseInt(latest.AdrActCnt, 10) || 0;
+
+    const previous = data[0];
+    const previousWallets = parseInt(previous.AdrActCnt, 10) || 0;
+    const activeWalletsGrowth = previousWallets > 0 ? ((activeWallets - previousWallets) / previousWallets) * 100 : 0;
+
+    const largeTransactions = parseInt(latest.TxCnt, 10) || 0;
 
     return {
       coin,
@@ -196,7 +239,7 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
       timestamp: new Date().toISOString()
     };
   } catch (error) {
-    console.error(`Error fetching on-chain data for ${coin} via Hugging Face, falling back to static data:`, error);
+    console.error(`Error fetching on-chain data for ${coin} via CoinMetrics, falling back to static data:`, error);
     const staticData = STATIC_WALLET_DATA[coin] || {
       coin,
       activeWallets: 0,
@@ -210,26 +253,23 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
 
 export const fetchEvents = async (): Promise<Event[]> => {
   try {
-    const response = await axios.get('https://cryptopanic.com/api/v1/posts/', {
+    const response = await axios.get('https://api.coingecko.com/api/v3/news', {
       params: {
-        auth_token: import.meta.env.VITE_CRYPTOPANIC_API_TOKEN,
-        public: true,
-        kind: 'news',
-        filter: 'hot',
-        currencies: Object.keys(SUPPORTED_COINS).join(',')
+        category: 'crypto',
+        limit: 50
       }
     });
-
-    return response.data.results.map((item: any) => ({
-      id: item.id.toString(),
-      coin: item.currencies?.[0]?.code || 'UNKNOWN',
-      date: item.published_at,
+    const newsItems = response.data.data || [];
+    return newsItems.map((item: any, index: number) => ({
+      id: index.toString(),
+      coin: item.title.match(/[A-Z]{3,4}/)?.[0] || 'UNKNOWN',
+      date: item.published_at || new Date().toISOString(),
       title: item.title,
-      description: item.domain,
+      description: item.source || 'CoinGecko',
       eventType: 'News'
     }));
   } catch (error) {
-    console.error('API error fetching events, falling back to static data:', error);
+    console.error('API error fetching events via CoinGecko, falling back to static data:', error);
     return STATIC_NEWS;
   }
 };
