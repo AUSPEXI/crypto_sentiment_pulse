@@ -83,28 +83,10 @@ const STATIC_NEWS: Event[] = [
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 const HUGGINGFACE_API_KEY = import.meta.env.VITE_HUGGINGFACE_API_KEY;
 
-// Helper to fetch recent news from CoinGecko with retry
-const fetchRecentNews = async (coin: string, retries = 3): Promise<string> => {
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      const response = await axios.get('https://api.coingecko.com/api/v3/news', {
-        params: { category: 'crypto', limit: 10 },
-        timeout: 10000
-      });
-      const newsItems = response.data || [];
-      const coinRegex = new RegExp(coin, 'i');
-      const relevantNews = newsItems
-        .filter((item: any) => coinRegex.test(item.title))
-        .map((item: any) => item.title)
-        .slice(0, 5);
-      return relevantNews.join(' ') || `No recent news for ${coin}`;
-    } catch (error) {
-      console.error(`Attempt ${attempt} failed for ${coin} via CoinGecko:`, error.message || error);
-      if (attempt === retries) return STATIC_NEWS.find(event => event.coin === coin)?.title || `No recent news for ${coin}`;
-      await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-    }
-  }
-  return `No recent news for ${coin}`;
+// Helper to fetch recent news (temporary static fallback)
+const fetchRecentNews = async (coin: string): Promise<string> => {
+  console.warn(`CoinGecko /news endpoint deprecated for ${coin}, using static data until new API is integrated`);
+  return STATIC_NEWS.find(event => event.coin === coin)?.title || `No recent news for ${coin}`;
 };
 
 // Fetch social sentiment from Reddit r/cryptocurrency with eight-shot prompting
@@ -127,6 +109,8 @@ const fetchSocialSentiment = async (coin: string): Promise<number> => {
     if (relevantPosts.length === 0) {
       return 0;
     }
+
+    if (!OPENAI_API_KEY) throw new Error('OpenAI API key missing');
 
     const fewShotExamples = [
       "Instruction: Analyze sentiment of 'BTC price up 5% today!'\n### Answer: 7",
@@ -166,6 +150,7 @@ export const fetchSentimentData = async (coin: string): Promise<SentimentData> =
   if (!coinInfo) throw new Error(`Unsupported coin: ${coin}`);
 
   try {
+    if (!OPENAI_API_KEY) throw new Error('OpenAI API key missing');
     const newsText = await fetchRecentNews(coin);
     const newsResponse = await axios.post(
       'https://api.openai.com/v1/completions',
@@ -203,7 +188,7 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
     const response = await axios.get('https://community-api.coinmetrics.io/v4/timeseries/asset-metrics', {
       params: {
         assets: coinInfo.coinMetrics,
-        metrics: 'AdrAct1d,TxTfrValAdjN',
+        metrics: 'AdrActCnt,TxCnt',
         start_time: startTime,
         end_time: endTime,
         frequency: '1d'
@@ -215,60 +200,25 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
     if (!data || data.length < 2) throw new Error('Insufficient data from CoinMetrics');
 
     const latest = data[data.length - 1];
-    const activeWallets = parseInt(latest.AdrAct1d, 10) || 0;
+    const activeWallets = parseInt(latest.AdrActCnt, 10) || 0;
     const previous = data[0];
-    const previousWallets = parseInt(previous.AdrAct1d, 10) || 0;
+    const previousWallets = parseInt(previous.AdrActCnt, 10) || 0;
     const activeWalletsGrowth = previousWallets > 0 ? ((activeWallets - previousWallets) / previousWallets) * 100 : 0;
-    const largeTransactions = parseInt(latest.TxTfrValAdjN, 10) || 0;
+    const largeTransactions = parseInt(latest.TxCnt, 10) || 0;
 
     return { coin, activeWallets, activeWalletsGrowth, largeTransactions, timestamp: new Date().toISOString() };
   } catch (error) {
     console.error(`Error fetching on-chain data for ${coin} via CoinMetrics:`, error.response?.data || error.message);
-    if (error.response?.data?.error?.includes('metric')) {
-      console.warn(`Falling back to default metrics for ${coin}`);
-      const fallbackResponse = await axios.get('https://community-api.coinmetrics.io/v4/timeseries/asset-metrics', {
-        params: { assets: coinInfo.coinMetrics, metrics: 'AdrActCnt,TxCnt', start_time: startTime, end_time: endTime, frequency: '1d' },
-        timeout: 10000
-      });
-      const fallbackData = fallbackResponse.data.data;
-      if (fallbackData && fallbackData.length >= 2) {
-        const latestFallback = fallbackData[fallbackData.length - 1];
-        const prevFallback = fallbackData[0];
-        return {
-          coin,
-          activeWallets: parseInt(latestFallback.AdrActCnt, 10) || 0,
-          activeWalletsGrowth: prevFallback.AdrActCnt > 0 ? ((parseInt(latestFallback.AdrActCnt, 10) - parseInt(prevFallback.AdrActCnt, 10)) / parseInt(prevFallback.AdrActCnt, 10)) * 100 : 0,
-          largeTransactions: parseInt(latestFallback.TxCnt, 10) || 0,
-          timestamp: new Date().toISOString()
-        };
-      }
+    const errorMessage = error.response?.data?.error;
+    if (typeof errorMessage === 'string' && errorMessage.includes('metric')) {
+      console.warn(`Metric not supported for ${coin}, using static data`);
     }
     const staticData = STATIC_WALLET_DATA[coin] || { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: new Date().toISOString() };
     return staticData;
   }
 };
 
-export const fetchEvents = async (retries = 3): Promise<Event[]> => {
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      const response = await axios.get('https://api.coingecko.com/api/v3/news', {
-        params: { category: 'crypto', limit: 50 },
-        timeout: 10000
-      });
-      const newsItems = response.data || [];
-      return newsItems.map((item: any, index: number) => ({
-        id: index.toString(),
-        coin: item.title.match(/[A-Z]{3,4}/)?.[0] || 'UNKNOWN',
-        date: item.published_at || new Date().toISOString(),
-        title: item.title,
-        description: item.source || 'CoinGecko',
-        eventType: 'News'
-      }));
-    } catch (error) {
-      console.error(`Attempt ${attempt} failed for events via CoinGecko:`, error.message || error);
-      if (attempt === retries) return STATIC_NEWS;
-      await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-    }
-  }
+export const fetchEvents = async (): Promise<Event[]> => {
+  console.warn('CoinGecko /news endpoint deprecated, using static data until new API is integrated');
   return STATIC_NEWS;
 };
