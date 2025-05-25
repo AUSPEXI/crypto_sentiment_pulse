@@ -2,8 +2,8 @@ import axios from 'axios';
 import { parseStringPromise } from 'xml2js';
 import { SentimentData, OnChainData, Event } from '../types';
 
-// Log environment variables for debugging
-console.log('Environment variables:', {
+// Log environment variables globally (moved to a safer spot)
+console.log('Initial Environment variables:', {
   newsApiKey: import.meta.env.VITE_NEWSAPI_API_KEY,
   openAiKey: import.meta.env.VITE_OPENAI_API_KEY,
 });
@@ -91,6 +91,7 @@ const NEWSAPI_API_KEY = import.meta.env.VITE_NEWSAPI_API_KEY;
 
 // Helper to fetch recent news from NewsAPI.org
 const fetchRecentNews = async (coin: string, apiKey: string): Promise<string> => {
+  console.log('Fetching news for', coin, 'with key:', apiKey ? 'set' : 'undefined');
   try {
     const response = await axios.get('https://newsapi.org/v2/everything', {
       params: {
@@ -116,6 +117,7 @@ const fetchRecentNews = async (coin: string, apiKey: string): Promise<string> =>
 
 // Fetch social sentiment from Reddit r/cryptocurrency with eight-shot prompting
 const fetchSocialSentiment = async (coin: string): Promise<number> => {
+  console.log('Fetching sentiment for', coin, 'with OpenAI key:', OPENAI_API_KEY ? 'set' : 'undefined');
   try {
     const response = await axios.get('https://www.reddit.com/r/cryptocurrency/.rss', {
       headers: { 'User-Agent': 'CryptoSentimentPulse/1.0' },
@@ -173,6 +175,7 @@ const fetchSocialSentiment = async (coin: string): Promise<number> => {
 };
 
 export const fetchSentimentData = async (coin: string, newsApiKey: string): Promise<SentimentData> => {
+  console.log('Fetching sentiment data for', coin, 'with keys:', { newsApiKey: newsApiKey ? 'set' : 'undefined', openAiKey: OPENAI_API_KEY ? 'set' : 'undefined' });
   const coinInfo = SUPPORTED_COINS[coin];
   if (!coinInfo) throw new Error(`Unsupported coin: ${coin}`);
 
@@ -206,6 +209,7 @@ export const fetchSentimentData = async (coin: string, newsApiKey: string): Prom
 };
 
 export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
+  console.log('Fetching on-chain data for', coin);
   const coinInfo = SUPPORTED_COINS[coin];
   if (!coinInfo) throw new Error(`Unsupported coin: ${coin}`);
 
@@ -243,6 +247,7 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
 };
 
 export const fetchEvents = async (apiKey: string): Promise<Event[]> => {
+  console.log('Fetching events with NewsAPI key:', apiKey ? 'set' : 'undefined');
   try {
     const response = await axios.get('https://newsapi.org/v2/top-headlines', {
       params: {
