@@ -83,30 +83,36 @@ const STATIC_NEWS: Event[] = [
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 const HUGGINGFACE_API_KEY = import.meta.env.VITE_HUGGINGFACE_API_KEY;
 
-// Helper to fetch recent news from CoinGecko
-const fetchRecentNews = async (coin: string): Promise<string> => {
-  try {
-    const response = await axios.get('https://api.coingecko.com/api/v3/news', {
-      params: { category: 'crypto', limit: 10 }
-    });
-    const newsItems = response.data || []; // Adjusted for direct data
-    const coinRegex = new RegExp(coin, 'i');
-    const relevantNews = newsItems
-      .filter((item: any) => coinRegex.test(item.title))
-      .map((item: any) => item.title)
-      .slice(0, 5);
-    return relevantNews.join(' ') || `No recent news for ${coin}`;
-  } catch (error) {
-    console.error(`Failed to fetch news for ${coin} via CoinGecko:`, error.response?.data || error.message);
-    return STATIC_NEWS.find(event => event.coin === coin)?.title || `No recent news for ${coin}`;
+// Helper to fetch recent news from CoinGecko with retry
+const fetchRecentNews = async (coin: string, retries = 3): Promise<string> => {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const response = await axios.get('https://api.coingecko.com/api/v3/news', {
+        params: { category: 'crypto', limit: 10 },
+        timeout: 10000
+      });
+      const newsItems = response.data || [];
+      const coinRegex = new RegExp(coin, 'i');
+      const relevantNews = newsItems
+        .filter((item: any) => coinRegex.test(item.title))
+        .map((item: any) => item.title)
+        .slice(0, 5);
+      return relevantNews.join(' ') || `No recent news for ${coin}`;
+    } catch (error) {
+      console.error(`Attempt ${attempt} failed for ${coin} via CoinGecko:`, error.message || error);
+      if (attempt === retries) return STATIC_NEWS.find(event => event.coin === coin)?.title || `No recent news for ${coin}`;
+      await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+    }
   }
+  return `No recent news for ${coin}`;
 };
 
 // Fetch social sentiment from Reddit r/cryptocurrency with eight-shot prompting
 const fetchSocialSentiment = async (coin: string): Promise<number> => {
   try {
     const response = await axios.get('https://www.reddit.com/r/cryptocurrency/.rss', {
-      headers: { 'User-Agent': 'CryptoSentimentPulse/1.0' }
+      headers: { 'User-Agent': 'CryptoSentimentPulse/1.0' },
+      timeout: 10000
     });
 
     const xmlData = await parseStringPromise(response.data);
@@ -150,7 +156,7 @@ const fetchSocialSentiment = async (coin: string): Promise<number> => {
     const socialScore = parseFloat(sentimentText) || 0;
     return Math.min(Math.max(socialScore, -10), 10);
   } catch (error) {
-    console.error(`Error fetching social sentiment for ${coin} from Reddit:`, error);
+    console.error(`Error fetching social sentiment for ${coin} from Reddit:`, error.message || error);
     return 0;
   }
 };
@@ -180,7 +186,7 @@ export const fetchSentimentData = async (coin: string): Promise<SentimentData> =
     console.log(`Sentiment for ${coin}: News=${newsScore}, WalletGrowth=${normalizedWalletGrowth * 10}, LargeTx=${normalizedLargeTransactions * 10}, Social=${socialScore}, Total=${finalScore}`);
     return { coin, score: finalScore, socialScore, timestamp: new Date().toISOString() };
   } catch (error) {
-    console.error(`Error fetching sentiment for ${coin}, falling back to static data:`, error);
+    console.error(`Error fetching sentiment for ${coin}, falling back to static data:`, error.message || error);
     const staticScore = STATIC_PRICE_CHANGES[coin] || 0;
     console.log(`Sentiment fallback for ${coin}: Static=${staticScore}`);
     return { coin, score: staticScore, timestamp: new Date().toISOString() };
@@ -197,11 +203,12 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
     const response = await axios.get('https://community-api.coinmetrics.io/v4/timeseries/asset-metrics', {
       params: {
         assets: coinInfo.coinMetrics,
-        metrics: 'AdrAct1d,TxTfrValAdjN', // Adjusted metrics
+        metrics: 'AdrAct1d,TxTfrValAdjN',
         start_time: startTime,
         end_time: endTime,
         frequency: '1d'
-      }
+      },
+      timeout: 10000
     });
 
     const data = response.data.data;
@@ -217,27 +224,51 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
     return { coin, activeWallets, activeWalletsGrowth, largeTransactions, timestamp: new Date().toISOString() };
   } catch (error) {
     console.error(`Error fetching on-chain data for ${coin} via CoinMetrics:`, error.response?.data || error.message);
+    if (error.response?.data?.error?.includes('metric')) {
+      console.warn(`Falling back to default metrics for ${coin}`);
+      const fallbackResponse = await axios.get('https://community-api.coinmetrics.io/v4/timeseries/asset-metrics', {
+        params: { assets: coinInfo.coinMetrics, metrics: 'AdrActCnt,TxCnt', start_time: startTime, end_time: endTime, frequency: '1d' },
+        timeout: 10000
+      });
+      const fallbackData = fallbackResponse.data.data;
+      if (fallbackData && fallbackData.length >= 2) {
+        const latestFallback = fallbackData[fallbackData.length - 1];
+        const prevFallback = fallbackData[0];
+        return {
+          coin,
+          activeWallets: parseInt(latestFallback.AdrActCnt, 10) || 0,
+          activeWalletsGrowth: prevFallback.AdrActCnt > 0 ? ((parseInt(latestFallback.AdrActCnt, 10) - parseInt(prevFallback.AdrActCnt, 10)) / parseInt(prevFallback.AdrActCnt, 10)) * 100 : 0,
+          largeTransactions: parseInt(latestFallback.TxCnt, 10) || 0,
+          timestamp: new Date().toISOString()
+        };
+      }
+    }
     const staticData = STATIC_WALLET_DATA[coin] || { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: new Date().toISOString() };
     return staticData;
   }
 };
 
-export const fetchEvents = async (): Promise<Event[]> => {
-  try {
-    const response = await axios.get('https://api.coingecko.com/api/v3/news', {
-      params: { category: 'crypto', limit: 50 }
-    });
-    const newsItems = response.data || []; // Adjusted for direct data
-    return newsItems.map((item: any, index: number) => ({
-      id: index.toString(),
-      coin: item.title.match(/[A-Z]{3,4}/)?.[0] || 'UNKNOWN',
-      date: item.published_at || new Date().toISOString(),
-      title: item.title,
-      description: item.source || 'CoinGecko',
-      eventType: 'News'
-    }));
-  } catch (error) {
-    console.error('API error fetching events via CoinGecko:', error.response?.data || error.message);
-    return STATIC_NEWS;
+export const fetchEvents = async (retries = 3): Promise<Event[]> => {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const response = await axios.get('https://api.coingecko.com/api/v3/news', {
+        params: { category: 'crypto', limit: 50 },
+        timeout: 10000
+      });
+      const newsItems = response.data || [];
+      return newsItems.map((item: any, index: number) => ({
+        id: index.toString(),
+        coin: item.title.match(/[A-Z]{3,4}/)?.[0] || 'UNKNOWN',
+        date: item.published_at || new Date().toISOString(),
+        title: item.title,
+        description: item.source || 'CoinGecko',
+        eventType: 'News'
+      }));
+    } catch (error) {
+      console.error(`Attempt ${attempt} failed for events via CoinGecko:`, error.message || error);
+      if (attempt === retries) return STATIC_NEWS;
+      await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+    }
   }
+  return STATIC_NEWS;
 };
