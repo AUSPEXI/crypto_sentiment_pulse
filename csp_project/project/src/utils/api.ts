@@ -40,8 +40,9 @@ STATIC_COINS.forEach(coin => {
     coinMetrics: coin.symbol.toLowerCase()
   };
 });
-SUPPORTED_COINS['USDT'] = { coingecko: 'usd-coin', cryptoPanic: 'usdt', coinMetrics: 'tether' };
-SUPPORTED_COINS['BNB'] = { coingecko: 'binance-coin', cryptoPanic: 'bnb', coinMetrics: 'binance-coin' };
+SUPPORTED_COINS['USDT'] = { coingecko: 'usd-coin', cryptoPanic: 'usdt', coinMetrics: 'usdt' };
+SUPPORTED_COINS['BNB'] = { coingecko: 'binance-coin', cryptoPanic: 'bnb', coinMetrics: 'bnb' };
+SUPPORTED_COINS['SOL'] = { coingecko: 'solana', cryptoPanic: 'sol', coinMetrics: 'sol' };
 
 export const getSupportedCoins = () => Object.keys(SUPPORTED_COINS);
 
@@ -86,12 +87,12 @@ const STATIC_NEWS: Event[] = [
 ];
 
 // OpenAI and NewsAPI configurations
-const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
-const NEWSAPI_API_KEY = import.meta.env.VITE_NEWSAPI_API_KEY;
+const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY || 'missing';
+const NEWSAPI_API_KEY = import.meta.env.VITE_NEWSAPI_API_KEY || 'missing';
 
 // Helper to fetch recent news from NewsAPI.org
 const fetchRecentNews = async (coin: string, apiKey: string): Promise<string> => {
-  console.log('Fetching news for', coin, 'with key:', apiKey ? 'set' : 'undefined');
+  console.log('Fetching news for', coin, 'with key:', apiKey !== 'missing' ? 'set' : 'undefined');
   try {
     const response = await axios.get('https://newsapi.org/v2/everything', {
       params: {
@@ -117,7 +118,7 @@ const fetchRecentNews = async (coin: string, apiKey: string): Promise<string> =>
 
 // Fetch social sentiment from Reddit r/cryptocurrency with eight-shot prompting
 const fetchSocialSentiment = async (coin: string): Promise<number> => {
-  console.log('Fetching sentiment for', coin, 'with OpenAI key:', OPENAI_API_KEY ? 'set' : 'undefined');
+  console.log('Fetching sentiment for', coin, 'with OpenAI key:', OPENAI_API_KEY !== 'missing' ? 'set' : 'undefined');
   try {
     const response = await axios.get('https://www.reddit.com/r/cryptocurrency/.rss', {
       headers: { 'User-Agent': 'CryptoSentimentPulse/1.0' },
@@ -139,7 +140,7 @@ const fetchSocialSentiment = async (coin: string): Promise<number> => {
       return 0;
     }
 
-    if (!OPENAI_API_KEY) throw new Error('OpenAI API key missing');
+    if (OPENAI_API_KEY === 'missing') throw new Error('OpenAI API key missing');
 
     const fewShotExamples = [
       "Instruction: Analyze sentiment of 'BTC price up 5% today!'\n### Answer: 7",
@@ -155,17 +156,17 @@ const fetchSocialSentiment = async (coin: string): Promise<number> => {
     const prompt = `${fewShotExamples}\n\nInstruction: Analyze the sentiment of the following Reddit post titles about ${coin} and provide a score between -10 (very negative) and 10 (very positive):\n\n${relevantPosts.join('\n')}\n### Answer:`;
 
     const sentimentResponse = await axios.post(
-      'https://api.openai.com/v1/completions',
+      'https://api.openai.com/v1/chat/completions',
       {
-        model: 'gpt-3.5-turbo', // Updated from text-davinci-003
-        prompt,
+        model: 'gpt-3.5-turbo',
+        messages: [{ role: 'user', content: prompt }],
         max_tokens: 60,
         temperature: 0.5,
       },
       { headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' } }
     );
 
-    const sentimentText = sentimentResponse.data.choices[0].text.trim();
+    const sentimentText = sentimentResponse.data.choices[0].message.content.trim();
     const socialScore = parseFloat(sentimentText) || 0;
     return Math.min(Math.max(socialScore, -10), 10);
   } catch (error) {
@@ -175,24 +176,24 @@ const fetchSocialSentiment = async (coin: string): Promise<number> => {
 };
 
 export const fetchSentimentData = async (coin: string, newsApiKey: string): Promise<SentimentData> => {
-  console.log('Fetching sentiment data for', coin, 'with keys:', { newsApiKey: newsApiKey ? 'set' : 'undefined', openAiKey: OPENAI_API_KEY ? 'set' : 'undefined' });
+  console.log('Fetching sentiment data for', coin, 'with keys:', { newsApiKey: newsApiKey !== 'missing' ? 'set' : 'undefined', openAiKey: OPENAI_API_KEY !== 'missing' ? 'set' : 'undefined' });
   const coinInfo = SUPPORTED_COINS[coin];
   if (!coinInfo) throw new Error(`Unsupported coin: ${coin}`);
 
   try {
-    if (!OPENAI_API_KEY) throw new Error('OpenAI API key missing');
+    if (OPENAI_API_KEY === 'missing') throw new Error('OpenAI API key missing');
     const newsText = await fetchRecentNews(coin, newsApiKey);
     const newsResponse = await axios.post(
-      'https://api.openai.com/v1/completions',
+      'https://api.openai.com/v1/chat/completions',
       {
-        model: 'gpt-3.5-turbo', // Updated from text-davinci-003
-        prompt: `Analyze the sentiment of the following text about ${coin} and provide a score between -10 (very negative) and 10 (very positive):\n\n${newsText}`,
+        model: 'gpt-3.5-turbo',
+        messages: [{ role: 'user', content: `Analyze the sentiment of the following text about ${coin} and provide a score between -10 (very negative) and 10 (very positive):\n\n${newsText}` }],
         max_tokens: 60,
         temperature: 0.5,
       },
       { headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' } }
     );
-    const newsScore = parseFloat(newsResponse.data.choices[0].text.trim()) || 0;
+    const newsScore = parseFloat(newsResponse.data.choices[0].message.content.trim()) || 0;
 
     const onChainData = await fetchOnChainData(coin);
     const normalizedWalletGrowth = Math.min(Math.max(onChainData.activeWalletsGrowth / 10, -1), 1);
@@ -252,7 +253,7 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
 };
 
 export const fetchEvents = async (apiKey: string): Promise<Event[]> => {
-  console.log('Fetching events with NewsAPI key:', apiKey ? 'set' : 'undefined');
+  console.log('Fetching events with NewsAPI key:', apiKey !== 'missing' ? 'set' : 'undefined');
   try {
     const response = await axios.get('https://newsapi.org/v2/top-headlines', {
       params: {
