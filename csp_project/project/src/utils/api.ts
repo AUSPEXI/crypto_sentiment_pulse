@@ -35,6 +35,7 @@ STATIC_COINS.forEach(coin => {
   };
 });
 SUPPORTED_COINS['USDT'] = { coingecko: 'usd-coin', cryptoPanic: 'usdt', coinMetrics: 'tether' };
+SUPPORTED_COINS['BNB'] = { coingecko: 'binance-coin', cryptoPanic: 'bnb', coinMetrics: 'binance-coin' };
 
 export const getSupportedCoins = () => Object.keys(SUPPORTED_COINS);
 
@@ -86,20 +87,17 @@ const HUGGINGFACE_API_KEY = import.meta.env.VITE_HUGGINGFACE_API_KEY;
 const fetchRecentNews = async (coin: string): Promise<string> => {
   try {
     const response = await axios.get('https://api.coingecko.com/api/v3/news', {
-      params: {
-        category: 'crypto',
-        limit: 10
-      }
+      params: { category: 'crypto', limit: 10 }
     });
-    const newsItems = response.data.data || [];
-    const coinRegex = new RegExp(coin, 'i'); // Relaxed regex
+    const newsItems = response.data || []; // Adjusted for direct data
+    const coinRegex = new RegExp(coin, 'i');
     const relevantNews = newsItems
       .filter((item: any) => coinRegex.test(item.title))
       .map((item: any) => item.title)
       .slice(0, 5);
     return relevantNews.join(' ') || `No recent news for ${coin}`;
   } catch (error) {
-    console.error(`Failed to fetch news for ${coin} via CoinGecko:`, error);
+    console.error(`Failed to fetch news for ${coin} via CoinGecko:`, error.response?.data || error.message);
     return STATIC_NEWS.find(event => event.coin === coin)?.title || `No recent news for ${coin}`;
   }
 };
@@ -199,7 +197,7 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
     const response = await axios.get('https://community-api.coinmetrics.io/v4/timeseries/asset-metrics', {
       params: {
         assets: coinInfo.coinMetrics,
-        metrics: 'AdrActCnt,TxCnt',
+        metrics: 'AdrAct1d,TxTfrValAdjN', // Adjusted metrics
         start_time: startTime,
         end_time: endTime,
         frequency: '1d'
@@ -210,15 +208,15 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
     if (!data || data.length < 2) throw new Error('Insufficient data from CoinMetrics');
 
     const latest = data[data.length - 1];
-    const activeWallets = parseInt(latest.AdrActCnt, 10) || 0;
+    const activeWallets = parseInt(latest.AdrAct1d, 10) || 0;
     const previous = data[0];
-    const previousWallets = parseInt(previous.AdrActCnt, 10) || 0;
+    const previousWallets = parseInt(previous.AdrAct1d, 10) || 0;
     const activeWalletsGrowth = previousWallets > 0 ? ((activeWallets - previousWallets) / previousWallets) * 100 : 0;
-    const largeTransactions = parseInt(latest.TxCnt, 10) || 0;
+    const largeTransactions = parseInt(latest.TxTfrValAdjN, 10) || 0;
 
     return { coin, activeWallets, activeWalletsGrowth, largeTransactions, timestamp: new Date().toISOString() };
   } catch (error) {
-    console.error(`Error fetching on-chain data for ${coin} via CoinMetrics:`, error);
+    console.error(`Error fetching on-chain data for ${coin} via CoinMetrics:`, error.response?.data || error.message);
     const staticData = STATIC_WALLET_DATA[coin] || { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: new Date().toISOString() };
     return staticData;
   }
@@ -227,12 +225,9 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
 export const fetchEvents = async (): Promise<Event[]> => {
   try {
     const response = await axios.get('https://api.coingecko.com/api/v3/news', {
-      params: {
-        category: 'crypto',
-        limit: 50
-      }
+      params: { category: 'crypto', limit: 50 }
     });
-    const newsItems = response.data.data || [];
+    const newsItems = response.data || []; // Adjusted for direct data
     return newsItems.map((item: any, index: number) => ({
       id: index.toString(),
       coin: item.title.match(/[A-Z]{3,4}/)?.[0] || 'UNKNOWN',
@@ -242,7 +237,7 @@ export const fetchEvents = async (): Promise<Event[]> => {
       eventType: 'News'
     }));
   } catch (error) {
-    console.error('API error fetching events via CoinGecko, falling back to static data:', error);
+    console.error('API error fetching events via CoinGecko:', error.response?.data || error.message);
     return STATIC_NEWS;
   }
 };
