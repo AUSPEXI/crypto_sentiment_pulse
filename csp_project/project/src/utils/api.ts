@@ -2,7 +2,7 @@ import axios from 'axios';
 import { parseStringPromise } from 'xml2js';
 import { SentimentData, OnChainData, Event } from '../types';
 
-// Log environment variables globally (moved to a safer spot)
+// Log environment variables globally
 console.log('Initial Environment variables:', {
   newsApiKey: import.meta.env.VITE_NEWSAPI_API_KEY,
   openAiKey: import.meta.env.VITE_OPENAI_API_KEY,
@@ -110,7 +110,7 @@ const fetchRecentNews = async (coin: string, apiKey: string): Promise<string> =>
       .slice(0, 5);
     return relevantNews.join(' ') || `No recent news for ${coin}`;
   } catch (error) {
-    console.error(`Error fetching news for ${coin} via NewsAPI.org:`, error.message || error);
+    console.error(`Error fetching news for ${coin} via NewsAPI.org:`, error.response?.data || error.message || error);
     return STATIC_NEWS.find(event => event.coin === coin)?.title || `No recent news for ${coin}`;
   }
 };
@@ -157,7 +157,7 @@ const fetchSocialSentiment = async (coin: string): Promise<number> => {
     const sentimentResponse = await axios.post(
       'https://api.openai.com/v1/completions',
       {
-        model: 'text-davinci-003',
+        model: 'gpt-3.5-turbo', // Updated from text-davinci-003
         prompt,
         max_tokens: 60,
         temperature: 0.5,
@@ -169,7 +169,7 @@ const fetchSocialSentiment = async (coin: string): Promise<number> => {
     const socialScore = parseFloat(sentimentText) || 0;
     return Math.min(Math.max(socialScore, -10), 10);
   } catch (error) {
-    console.error(`Error fetching social sentiment for ${coin} from Reddit:`, error.message || error);
+    console.error(`Error fetching social sentiment for ${coin} from Reddit:`, error.response?.data || error.message || error);
     return 0;
   }
 };
@@ -184,7 +184,12 @@ export const fetchSentimentData = async (coin: string, newsApiKey: string): Prom
     const newsText = await fetchRecentNews(coin, newsApiKey);
     const newsResponse = await axios.post(
       'https://api.openai.com/v1/completions',
-      { model: 'text-davinci-003', prompt: `Analyze the sentiment of the following text about ${coin} and provide a score between -10 (very negative) and 10 (very positive):\n\n${newsText}`, max_tokens: 60, temperature: 0.5 },
+      {
+        model: 'gpt-3.5-turbo', // Updated from text-davinci-003
+        prompt: `Analyze the sentiment of the following text about ${coin} and provide a score between -10 (very negative) and 10 (very positive):\n\n${newsText}`,
+        max_tokens: 60,
+        temperature: 0.5,
+      },
       { headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' } }
     );
     const newsScore = parseFloat(newsResponse.data.choices[0].text.trim()) || 0;
@@ -201,7 +206,7 @@ export const fetchSentimentData = async (coin: string, newsApiKey: string): Prom
     console.log(`Sentiment for ${coin}: News=${newsScore}, WalletGrowth=${normalizedWalletGrowth * 10}, LargeTx=${normalizedLargeTransactions * 10}, Social=${socialScore}, Total=${finalScore}`);
     return { coin, score: finalScore, socialScore, timestamp: new Date().toISOString() };
   } catch (error) {
-    console.error(`Error fetching sentiment for ${coin}, falling back to static data:`, error.message || error);
+    console.error(`Error fetching sentiment for ${coin}, falling back to static data:`, error.response?.data || error.message || error);
     const staticScore = STATIC_PRICE_CHANGES[coin] || 0;
     console.log(`Sentiment fallback for ${coin}: Static=${staticScore}`);
     return { coin, score: staticScore, timestamp: new Date().toISOString() };
@@ -268,7 +273,7 @@ export const fetchEvents = async (apiKey: string): Promise<Event[]> => {
       eventType: 'News'
     }));
   } catch (error) {
-    console.error('Error fetching events via NewsAPI.org:', error.message || error);
+    console.error('Error fetching events via NewsAPI.org:', error.response?.data || error.message || error);
     return STATIC_NEWS;
   }
 };
