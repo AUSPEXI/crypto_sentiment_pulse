@@ -1,4 +1,3 @@
-// src/components/SentimentSnapshot.tsx
 import React, { useState, useEffect } from 'react';
 import { fetchSentimentData } from '../utils/api';
 import { SentimentData } from '../types';
@@ -36,7 +35,7 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
       }
     };
     fetchData();
-    const intervalId = setInterval(fetchData, 60 * 60 * 1000);
+    const intervalId = setInterval(fetchData, 6 * 60 * 60 * 1000); // 6-hour refresh
     return () => clearInterval(intervalId);
   }, [coinsToFetch]);
 
@@ -74,7 +73,7 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
                 </div>
               );
             }
-            const speedometerValue = ((data.score + 10) / 20) * 100; // -10 to 10 -> 0 to 100
+            const speedometerValue = ((data.score + 10) / 20) * 100;
             const positive = speedometerValue > 50 ? (speedometerValue - 50) * 2 : 0;
             const negative = speedometerValue < 50 ? (50 - speedometerValue) * 2 : 0;
             const neutral = Math.abs(50 - speedometerValue) === 50 ? 100 : 100 - positive - negative;
