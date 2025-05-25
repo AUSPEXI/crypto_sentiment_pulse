@@ -79,14 +79,33 @@ const STATIC_NEWS: Event[] = [
   { id: '4', coin: 'XRP', date: '2025-05-24T07:00:00Z', title: 'XRP Lawsuit Update', description: 'New developments in XRP case.', eventType: 'News' }
 ];
 
-// OpenAI and Hugging Face configurations
+// OpenAI and NewsAPI configurations
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
-const HUGGINGFACE_API_KEY = import.meta.env.VITE_HUGGINGFACE_API_KEY;
+const NEWSAPI_API_KEY = import.meta.env.VITE_NEWSAPI_API_KEY;
 
-// Helper to fetch recent news (temporary static fallback)
-const fetchRecentNews = async (coin: string): Promise<string> => {
-  console.warn(`CoinGecko /news endpoint deprecated for ${coin}, using static data until new API is integrated`);
-  return STATIC_NEWS.find(event => event.coin === coin)?.title || `No recent news for ${coin}`;
+// Helper to fetch recent news from NewsAPI.org
+const fetchRecentNews = async (coin: string, apiKey: string): Promise<string> => {
+  try {
+    const response = await axios.get('https://newsapi.org/v2/everything', {
+      params: {
+        q: coin,
+        from: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        sortBy: 'publishedAt',
+        apiKey: apiKey,
+        pageSize: 5
+      },
+      timeout: 10000
+    });
+    const articles = response.data.articles || [];
+    const relevantNews = articles
+      .filter((article: any) => article.title && article.title.toLowerCase().includes(coin.toLowerCase()))
+      .map((article: any) => article.title)
+      .slice(0, 5);
+    return relevantNews.join(' ') || `No recent news for ${coin}`;
+  } catch (error) {
+    console.error(`Error fetching news for ${coin} via NewsAPI.org:`, error.message || error);
+    return STATIC_NEWS.find(event => event.coin === coin)?.title || `No recent news for ${coin}`;
+  }
 };
 
 // Fetch social sentiment from Reddit r/cryptocurrency with eight-shot prompting
@@ -145,13 +164,13 @@ const fetchSocialSentiment = async (coin: string): Promise<number> => {
   }
 };
 
-export const fetchSentimentData = async (coin: string): Promise<SentimentData> => {
+export const fetchSentimentData = async (coin: string, newsApiKey: string): Promise<SentimentData> => {
   const coinInfo = SUPPORTED_COINS[coin];
   if (!coinInfo) throw new Error(`Unsupported coin: ${coin}`);
 
   try {
     if (!OPENAI_API_KEY) throw new Error('OpenAI API key missing');
-    const newsText = await fetchRecentNews(coin);
+    const newsText = await fetchRecentNews(coin, newsApiKey);
     const newsResponse = await axios.post(
       'https://api.openai.com/v1/completions',
       { model: 'text-davinci-003', prompt: `Analyze the sentiment of the following text about ${coin} and provide a score between -10 (very negative) and 10 (very positive):\n\n${newsText}`, max_tokens: 60, temperature: 0.5 },
@@ -218,7 +237,28 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
   }
 };
 
-export const fetchEvents = async (): Promise<Event[]> => {
-  console.warn('CoinGecko /news endpoint deprecated, using static data until new API is integrated');
-  return STATIC_NEWS;
+export const fetchEvents = async (apiKey: string): Promise<Event[]> => {
+  try {
+    const response = await axios.get('https://newsapi.org/v2/top-headlines', {
+      params: {
+        category: 'business',
+        language: 'en',
+        apiKey: apiKey,
+        pageSize: 50
+      },
+      timeout: 10000
+    });
+    const articles = response.data.articles || [];
+    return articles.map((article: any, index: number) => ({
+      id: index.toString(),
+      coin: article.title.match(/[A-Z]{3,4}/)?.[0] || 'UNKNOWN',
+      date: article.publishedAt || new Date().toISOString(),
+      title: article.title,
+      description: article.source.name || 'NewsAPI.org',
+      eventType: 'News'
+    }));
+  } catch (error) {
+    console.error('Error fetching events via NewsAPI.org:', error.message || error);
+    return STATIC_NEWS;
+  }
 };
