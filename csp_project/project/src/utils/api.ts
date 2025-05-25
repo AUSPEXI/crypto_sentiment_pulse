@@ -37,12 +37,12 @@ STATIC_COINS.forEach(coin => {
   SUPPORTED_COINS[coin.symbol] = {
     coingecko: coin.id,
     cryptoPanic: coin.symbol.toLowerCase(),
-    coinMetrics: coin.symbol.toLowerCase()
+    coinMetrics: coin.id // Use CoinMetrics-compatible asset names
   };
 });
-SUPPORTED_COINS['USDT'] = { coingecko: 'usd-coin', cryptoPanic: 'usdt', coinMetrics: 'usdt' };
-SUPPORTED_COINS['BNB'] = { coingecko: 'binance-coin', cryptoPanic: 'bnb', coinMetrics: 'bnb' };
-SUPPORTED_COINS['SOL'] = { coingecko: 'solana', cryptoPanic: 'sol', coinMetrics: 'sol' };
+SUPPORTED_COINS['USDT'] = { coingecko: 'usd-coin', cryptoPanic: 'usdt', coinMetrics: 'tether' };
+SUPPORTED_COINS['BNB'] = { coingecko: 'binance-coin', cryptoPanic: 'bnb', coinMetrics: 'binancecoin' };
+SUPPORTED_COINS['SOL'] = { coingecko: 'solana', cryptoPanic: 'sol', coinMetrics: 'solana' };
 
 export const getSupportedCoins = () => Object.keys(SUPPORTED_COINS);
 
@@ -90,44 +90,50 @@ const STATIC_NEWS: Event[] = [
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY || 'missing';
 const NEWSAPI_API_KEY = import.meta.env.VITE_NEWSAPI_API_KEY || 'missing';
 
-// Helper to fetch recent news from NewsAPI.org
-const fetchRecentNews = async (coin: string, apiKey: string): Promise<string> => {
-  console.log('Fetching news for', coin, 'with key:', apiKey !== 'missing' ? 'set' : 'undefined');
+// Helper to make proxied API requests
+const makeProxiedRequest = async (api: string, endpoint: string, params: any) => {
+  const proxyUrl = '/.netlify/functions/proxy';
+  console.log(`Making proxied request to ${api}/${endpoint} with params:`, params);
   try {
-    const response = await axios.get('https://newsapi.org/v2/everything', {
-      params: {
-        q: coin,
-        from: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        sortBy: 'publishedAt',
-        apiKey: apiKey,
-        pageSize: 5
-      },
-      timeout: 10000
+    const response = await axios.get(proxyUrl, {
+      params: { api, endpoint, params: JSON.stringify(params) },
+      timeout: 10000,
     });
-    const articles = response.data.articles || [];
+    return response.data;
+  } catch (error) {
+    throw new Error(`Proxied request failed: ${error.response?.data?.error || error.message}`);
+  }
+};
+
+// Helper to fetch recent news from NewsAPI.org
+const fetchRecentNews = async (coin: string): Promise<string> => {
+  console.log('Fetching news for', coin, 'via proxy');
+  try {
+    const params = {
+      q: coin,
+      from: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      sortBy: 'publishedAt',
+      pageSize: 5,
+    };
+    const data = await makeProxiedRequest('newsapi', 'everything', params);
+    const articles = data.articles || [];
     const relevantNews = articles
       .filter((article: any) => article.title && article.title.toLowerCase().includes(coin.toLowerCase()))
       .map((article: any) => article.title)
       .slice(0, 5);
     return relevantNews.join(' ') || `No recent news for ${coin}`;
   } catch (error) {
-    console.error(`Error fetching news for ${coin} via NewsAPI.org:`, error.response?.data || error.message || error);
+    console.error(`Error fetching news for ${coin} via NewsAPI.org:`, error.message);
     return STATIC_NEWS.find(event => event.coin === coin)?.title || `No recent news for ${coin}`;
   }
 };
 
 // Fetch social sentiment from Reddit r/cryptocurrency with eight-shot prompting
 const fetchSocialSentiment = async (coin: string): Promise<number> => {
-  console.log('Fetching sentiment for', coin, 'with OpenAI key:', OPENAI_API_KEY !== 'missing' ? 'set' : 'undefined');
+  console.log('Fetching sentiment for', coin, 'via proxy');
   try {
-    const response = await axios.get('https://www.reddit.com/r/cryptocurrency/.rss', {
-      headers: { 'User-Agent': 'CryptoSentimentPulse/1.0' },
-      timeout: 10000
-    });
-
-    console.log(`Reddit response for ${coin}:`, response.data ? 'Success' : 'Empty');
-
-    const xmlData = await parseStringPromise(response.data);
+    const data = await makeProxiedRequest('reddit', '', {});
+    const xmlData = await parseStringPromise(data);
     const items = xmlData.feed.entry || [];
 
     const coinRegex = new RegExp(`\\b${coin}\\b`, 'i');
@@ -175,14 +181,14 @@ const fetchSocialSentiment = async (coin: string): Promise<number> => {
   }
 };
 
-export const fetchSentimentData = async (coin: string, newsApiKey: string): Promise<SentimentData> => {
-  console.log('Fetching sentiment data for', coin, 'with keys:', { newsApiKey: newsApiKey !== 'missing' ? 'set' : 'undefined', openAiKey: OPENAI_API_KEY !== 'missing' ? 'set' : 'undefined' });
+export const fetchSentimentData = async (coin: string): Promise<SentimentData> => {
+  console.log('Fetching sentiment data for', coin);
   const coinInfo = SUPPORTED_COINS[coin];
   if (!coinInfo) throw new Error(`Unsupported coin: ${coin}`);
 
   try {
     if (OPENAI_API_KEY === 'missing') throw new Error('OpenAI API key missing');
-    const newsText = await fetchRecentNews(coin, newsApiKey);
+    const newsText = await fetchRecentNews(coin);
     const newsResponse = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
@@ -222,59 +228,53 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
   try {
     const endTime = new Date().toISOString().split('T')[0];
     const startTime = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const response = await axios.get('https://community-api.coinmetrics.io/v4/timeseries/asset-metrics', {
-      params: {
-        assets: coinInfo.coinMetrics,
-        metrics: 'AdrActCnt,TxCnt',
-        start_time: startTime,
-        end_time: endTime,
-        frequency: '1d'
-      },
-      timeout: 10000
-    });
+    const params = {
+      assets: coinInfo.coinMetrics,
+      metrics: 'AdrActCnt,TxCnt',
+      start_time: startTime,
+      end_time: endTime,
+      frequency: '1d',
+    };
+    const data = await makeProxiedRequest('coinmetrics', 'timeseries/asset-metrics', params);
 
-    console.log(`CoinMetrics response for ${coin}:`, response.data ? 'Success' : 'Empty');
-    const data = response.data.data;
-    if (!data || data.length < 2) throw new Error('Insufficient data from CoinMetrics');
+    console.log(`CoinMetrics response for ${coin}:`, data ? 'Success' : 'Empty');
+    if (!data.data || data.data.length < 2) throw new Error('Insufficient data from CoinMetrics');
 
-    const latest = data[data.length - 1];
+    const latest = data.data[data.data.length - 1];
     const activeWallets = parseInt(latest.AdrActCnt, 10) || 0;
-    const previous = data[0];
+    const previous = data.data[0];
     const previousWallets = parseInt(previous.AdrActCnt, 10) || 0;
     const activeWalletsGrowth = previousWallets > 0 ? ((activeWallets - previousWallets) / previousWallets) * 100 : 0;
     const largeTransactions = parseInt(latest.TxCnt, 10) || 0;
 
     return { coin, activeWallets, activeWalletsGrowth, largeTransactions, timestamp: new Date().toISOString() };
   } catch (error) {
-    console.error(`Error fetching on-chain data for ${coin} via CoinMetrics:`, error.response?.data || error.message || error);
+    console.error(`Error fetching on-chain data for ${coin} via CoinMetrics:`, error.message);
     const staticData = STATIC_WALLET_DATA[coin] || { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: new Date().toISOString() };
     return staticData;
   }
 };
 
-export const fetchEvents = async (apiKey: string): Promise<Event[]> => {
-  console.log('Fetching events with NewsAPI key:', apiKey !== 'missing' ? 'set' : 'undefined');
+export const fetchEvents = async (): Promise<Event[]> => {
+  console.log('Fetching events via proxy');
   try {
-    const response = await axios.get('https://newsapi.org/v2/top-headlines', {
-      params: {
-        category: 'business',
-        language: 'en',
-        apiKey: apiKey,
-        pageSize: 50
-      },
-      timeout: 10000
-    });
-    const articles = response.data.articles || [];
+    const params = {
+      category: 'business',
+      language: 'en',
+      pageSize: 50,
+    };
+    const data = await makeProxiedRequest('newsapi', 'top-headlines', params);
+    const articles = data.articles || [];
     return articles.map((article: any, index: number) => ({
       id: index.toString(),
       coin: article.title.match(/[A-Z]{3,4}/)?.[0] || 'UNKNOWN',
       date: article.publishedAt || new Date().toISOString(),
       title: article.title,
       description: article.source.name || 'NewsAPI.org',
-      eventType: 'News'
+      eventType: 'News',
     }));
   } catch (error) {
-    console.error('Error fetching events via NewsAPI.org:', error.response?.data || error.message || error);
+    console.error('Error fetching events via NewsAPI.org:', error.message);
     return STATIC_NEWS;
   }
 };
