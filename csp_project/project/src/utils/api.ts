@@ -2,14 +2,6 @@ import axios from 'axios';
 import { parseStringPromise } from 'xml2js';
 import { SentimentData, OnChainData, Event } from '../types';
 
-// Create Axios instance with modern TLS configuration
-const axiosInstance = axios.create({
-  httpsAgent: new (require('https').Agent)({
-    rejectUnauthorized: true,
-    secureProtocol: 'TLSv1_3_method',
-  }),
-});
-
 // Log environment variables for debugging
 console.log('Environment variables:', {
   newsApiKey: import.meta.env.VITE_NEWSAPI_API_KEY,
@@ -100,7 +92,7 @@ const NEWSAPI_API_KEY = import.meta.env.VITE_NEWSAPI_API_KEY;
 // Helper to fetch recent news from NewsAPI.org
 const fetchRecentNews = async (coin: string, apiKey: string): Promise<string> => {
   try {
-    const response = await axiosInstance.get('https://newsapi.org/v2/everything', {
+    const response = await axios.get('https://newsapi.org/v2/everything', {
       params: {
         q: coin,
         from: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -125,7 +117,7 @@ const fetchRecentNews = async (coin: string, apiKey: string): Promise<string> =>
 // Fetch social sentiment from Reddit r/cryptocurrency with eight-shot prompting
 const fetchSocialSentiment = async (coin: string): Promise<number> => {
   try {
-    const response = await axiosInstance.get('https://www.reddit.com/r/cryptocurrency/.rss', {
+    const response = await axios.get('https://www.reddit.com/r/cryptocurrency/.rss', {
       headers: { 'User-Agent': 'CryptoSentimentPulse/1.0' },
       timeout: 10000
     });
@@ -160,7 +152,7 @@ const fetchSocialSentiment = async (coin: string): Promise<number> => {
 
     const prompt = `${fewShotExamples}\n\nInstruction: Analyze the sentiment of the following Reddit post titles about ${coin} and provide a score between -10 (very negative) and 10 (very positive):\n\n${relevantPosts.join('\n')}\n### Answer:`;
 
-    const sentimentResponse = await axiosInstance.post(
+    const sentimentResponse = await axios.post(
       'https://api.openai.com/v1/completions',
       {
         model: 'text-davinci-003',
@@ -187,7 +179,7 @@ export const fetchSentimentData = async (coin: string, newsApiKey: string): Prom
   try {
     if (!OPENAI_API_KEY) throw new Error('OpenAI API key missing');
     const newsText = await fetchRecentNews(coin, newsApiKey);
-    const newsResponse = await axiosInstance.post(
+    const newsResponse = await axios.post(
       'https://api.openai.com/v1/completions',
       { model: 'text-davinci-003', prompt: `Analyze the sentiment of the following text about ${coin} and provide a score between -10 (very negative) and 10 (very positive):\n\n${newsText}`, max_tokens: 60, temperature: 0.5 },
       { headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' } }
@@ -220,7 +212,7 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
   try {
     const endTime = new Date().toISOString().split('T')[0];
     const startTime = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const response = await axiosInstance.get('https://community-api.coinmetrics.io/v4/timeseries/asset-metrics', {
+    const response = await axios.get('https://community-api.coinmetrics.io/v4/timeseries/asset-metrics', {
       params: {
         assets: coinInfo.coinMetrics,
         metrics: 'AdrActCnt,TxCnt',
@@ -252,7 +244,7 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
 
 export const fetchEvents = async (apiKey: string): Promise<Event[]> => {
   try {
-    const response = await axiosInstance.get('https://newsapi.org/v2/top-headlines', {
+    const response = await axios.get('https://newsapi.org/v2/top-headlines', {
       params: {
         category: 'business',
         language: 'en',
