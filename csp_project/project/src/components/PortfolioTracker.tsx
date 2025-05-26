@@ -1,8 +1,3 @@
-
----
-
-### `src/components/PortfolioTracker.tsx`
-```typescript
 // src/components/PortfolioTracker.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { fetchSentimentData, STATIC_COINS } from '../utils/api';
