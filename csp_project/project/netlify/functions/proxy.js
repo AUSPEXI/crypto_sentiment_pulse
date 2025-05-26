@@ -39,7 +39,7 @@ exports.handler = async (event) => {
       console.log('NewsAPI request:', { url, params });
     } else if (api === 'coinmetrics') {
       url = `https://community-api.coinmetrics.io/v4/${endpoint}`;
-      params.api_key = process.env.COINMETRICS_API_KEY || 'missing'; // Optional for community, included for future proofing
+      params.api_key = process.env.COINMETRICS_API_KEY || 'missing';
       console.log('CoinMetrics request:', { url, params });
     } else if (api === 'reddit') {
       url = `https://www.reddit.com/r/CryptoCurrency.rss`;
