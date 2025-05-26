@@ -28,6 +28,24 @@ const STATIC_PRICE_CHANGES = {
   SOL: 0.90,
 };
 
+// Static news fallback for EventAlerts.tsx
+export const STATIC_NEWS: { [key: string]: Event[] } = {
+  BTC: [
+    { title: "BTC price steady", description: "Bitcoin remains stable.", url: "", publishedAt: new Date().toISOString() },
+    { title: "BTC adoption grows", description: "More merchants accept BTC.", url: "", publishedAt: new Date().toISOString() },
+  ],
+  ETH: [
+    { title: "ETH network update", description: "Ethereum upgrade incoming.", url: "", publishedAt: new Date().toISOString() },
+    { title: "ETH staking rises", description: "More users stake ETH.", url: "", publishedAt: new Date().toISOString() },
+  ],
+  USDT: [
+    { title: "USDT volume up", description: "Tether transactions increase.", url: "", publishedAt: new Date().toISOString() },
+  ],
+  SOL: [
+    { title: "SOL ecosystem grows", description: "Solana projects expand.", url: "", publishedAt: new Date().toISOString() },
+  ],
+};
+
 // Interface definitions
 interface OnChainData {
   coin: string;
@@ -44,7 +62,7 @@ interface SentimentData {
   timestamp: string;
 }
 
-interface Event {
+export interface Event {
   title: string;
   description: string;
   url: string;
@@ -98,7 +116,7 @@ export const fetchEvents = async (coin: string = 'BTC'): Promise<Event[]> => {
     }));
   } catch (error) {
     console.error(`Error fetching events for ${coin}:`, error.message);
-    return [];
+    return STATIC_NEWS[coin] || [];
   }
 };
 
