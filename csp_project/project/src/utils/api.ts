@@ -99,6 +99,7 @@ const fetchRecentNews = async (coin: string): Promise<string> => {
   const params = { q: coin, language: 'en', sortBy: 'publishedAt' };
   const data = await makeProxiedRequest('newsapi', 'everything', params);
   const newsText = data.articles.map((article: any) => article.title + ' ' + article.description).join(' ');
+  console.log(`News text for ${coin}:`, newsText); // Debug log
   return newsText.length > 1000 ? newsText.substring(0, 1000) + '...' : newsText;
 };
 
@@ -141,11 +142,15 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
 
     const assetData = data.data?.[0];
     if (assetData) {
+      const activeWallets = parseInt(assetData.PriceUSD ? 100000 : 0);
+      const activeWalletsGrowth = parseFloat(assetData.CapMrktCurUSD ? 1.0 : 0);
+      const largeTransactions = parseInt(assetData.CapMrktCurUSD ? 500 : 0);
+      console.log(`On-chain data for ${coin}:`, { activeWallets, activeWalletsGrowth, largeTransactions }); // Debug log
       return {
         coin,
-        activeWallets: parseInt(assetData.PriceUSD ? 100000 : 0),
-        activeWalletsGrowth: parseFloat(assetData.CapMrktCurUSD ? 1.0 : 0),
-        largeTransactions: parseInt(assetData.CapMrktCurUSD ? 500 : 0),
+        activeWallets,
+        activeWalletsGrowth,
+        largeTransactions,
         timestamp: new Date().toISOString(),
       };
     }
@@ -170,14 +175,21 @@ const fetchSocialSentiment = async (coin: string): Promise<number> => {
     console.log(`Parsed XML data for ${coin}:`, xmlData);
 
     const items = xmlData.feed?.entry || [];
-    const coinRegex = new RegExp(`${coin}`, 'i');
+    const coinRegex = new RegExp(`\\b(${coin}|${coin.toLowerCase()})\\b`, 'i'); // Match whole words
     const relevantPosts = items
-      .filter((item: any) => coinRegex.test(item.title?.['#text'] || ''))
+      .filter((item: any) => {
+        const title = item.title?.['#text'] || '';
+        const content = item.content?.['#text'] || ''; // Check content body
+        const match = coinRegex.test(title) || coinRegex.test(content);
+        if (match) console.log(`Matched post for ${coin}:`, { title, content });
+        return match;
+      })
       .slice(0, 5)
       .map((item: any) => {
         const title = item.title?.['#text'] || '';
-        console.log(`Matched title for ${coin}:`, title);
-        return title;
+        const content = item.content?.['#text'] || '';
+        console.log(`Matched title/content for ${coin}:`, { title, content });
+        return title + (content ? ` ${content.substring(0, 100)}...` : ''); // Include content snippet
       });
 
     if (relevantPosts.length === 0) {
@@ -196,7 +208,7 @@ const fetchSocialSentiment = async (coin: string): Promise<number> => {
       "Instruction: Analyze sentiment of 'LTC steady gains'\n### Answer: 5"
     ].join('\n\n');
 
-    const prompt = `${fewShotExamples}\n\nInstruction: Analyze the sentiment of the following Reddit post titles about ${coin} and provide a score between -10 (very negative) and 10 (very positive):\n\n${relevantPosts.join('\n')}\n### Answer:`;
+    const prompt = `${fewShotExamples}\n\nInstruction: Analyze the sentiment of the following Reddit post titles and content snippets about ${coin} and provide a score between -10 (very negative) and 10 (very positive):\n\n${relevantPosts.join('\n')}\n### Answer:`;
 
     const openAiParams = {
       model: 'gpt-3.5-turbo',
