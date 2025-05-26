@@ -4,10 +4,10 @@ import { XMLParser } from 'fast-xml-parser';
 
 // Define supported coins
 const SUPPORTED_COINS = {
-  BTC: { symbol: 'BTC', coinMetrics: 'btc' },
-  ETH: { symbol: 'ETH', coinMetrics: 'eth' },
-  USDT: { symbol: 'USDT', coinMetrics: 'usdt' },
-  SOL: { symbol: 'SOL', coinMetrics: 'sol' },
+  BTC: { symbol: 'BTC', coinMetrics: 'bitcoin' },
+  ETH: { symbol: 'ETH', coinMetrics: 'ethereum' },
+  USDT: { symbol: 'USDT', coinMetrics: 'tether' },
+  SOL: { symbol: 'SOL', coinMetrics: 'solana' },
 };
 
 // Export STATIC_COINS for use in PortfolioTracker.tsx
@@ -28,24 +28,6 @@ const STATIC_PRICE_CHANGES = {
   SOL: 0.90,
 };
 
-// Static news fallback for EventAlerts.tsx
-export const STATIC_NEWS: { [key: string]: Event[] } = {
-  BTC: [
-    { title: "BTC price steady", description: "Bitcoin remains stable.", url: "", publishedAt: new Date().toISOString() },
-    { title: "BTC adoption grows", description: "More merchants accept BTC.", url: "", publishedAt: new Date().toISOString() },
-  ],
-  ETH: [
-    { title: "ETH network update", description: "Ethereum upgrade incoming.", url: "", publishedAt: new Date().toISOString() },
-    { title: "ETH staking rises", description: "More users stake ETH.", url: "", publishedAt: new Date().toISOString() },
-  ],
-  USDT: [
-    { title: "USDT volume up", description: "Tether transactions increase.", url: "", publishedAt: new Date().toISOString() },
-  ],
-  SOL: [
-    { title: "SOL ecosystem grows", description: "Solana projects expand.", url: "", publishedAt: new Date().toISOString() },
-  ],
-};
-
 // Interface definitions
 interface OnChainData {
   coin: string;
@@ -62,7 +44,7 @@ interface SentimentData {
   timestamp: string;
 }
 
-export interface Event {
+interface Event {
   title: string;
   description: string;
   url: string;
@@ -79,16 +61,17 @@ const makeProxiedRequest = async (api: string, endpoint: string, params: any, me
       url: proxyUrl,
       timeout: 10000,
     };
+    // For POST requests, send params in the body; for GET, use query params
     if (method === 'POST') {
-      config.data = { api, endpoint, params };
+      config.data = { api, endpoint, params }; // Send params in body
     } else {
       config.params = { api, endpoint, params: JSON.stringify(params) };
     }
     const response = await axios(config);
-    console.log(`Proxy response for ${api}/${endpoint}:`, response.data, 'Headers:', response.headers);
+    console.log(`Proxy response for ${api}/${endpoint}:`, response.data);
     return response.data;
   } catch (error) {
-    console.error(`Proxied request failed for ${api}/${endpoint}:`, error.response?.data || error.message, 'Status:', error.response?.status, 'Headers:', error.response?.headers);
+    console.error(`Proxied request failed for ${api}/${endpoint}:`, error.response?.data || error.message);
     throw new Error(`Proxied request failed: ${error.response?.status || error.message}`);
   }
 };
@@ -99,11 +82,12 @@ const fetchRecentNews = async (coin: string): Promise<string> => {
   const params = { q: coin, language: 'en', sortBy: 'publishedAt' };
   const data = await makeProxiedRequest('newsapi', 'everything', params);
   const newsText = data.articles.map((article: any) => article.title + ' ' + article.description).join(' ');
+  // Truncate to avoid overly long prompts
   return newsText.length > 1000 ? newsText.substring(0, 1000) + '...' : newsText;
 };
 
 // Fetch events
-export const fetchEvents = async (coin: string = 'BTC'): Promise<Event[]> => {
+export const fetchEvents = async (coin: string): Promise<Event[]> => {
   console.log('Fetching events for', coin, 'via proxy');
   const params = { q: coin, language: 'en', pageSize: 5 };
   try {
@@ -116,7 +100,7 @@ export const fetchEvents = async (coin: string = 'BTC'): Promise<Event[]> => {
     }));
   } catch (error) {
     console.error(`Error fetching events for ${coin}:`, error.message);
-    return STATIC_NEWS[coin] || [];
+    return [];
   }
 };
 
@@ -127,11 +111,12 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
   if (!coinInfo) throw new Error(`Unsupported coin: ${coin}`);
 
   try {
-    const endDate = new Date().toISOString().split('T')[0];
-    const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    // Use historical dates (last 7 days up to today)
+    const endDate = new Date().toISOString().split('T')[0]; // e.g., '2025-05-26'
+    const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 7 days ago
     const params = {
       assets: coinInfo.coinMetrics,
-      metrics: 'PriceUSD,CapMrktCurUSD',
+      metrics: 'AdrActCnt,TxCnt', // Updated metrics to match CoinMetrics API
       start_time: startDate,
       end_time: endDate,
     };
@@ -143,9 +128,9 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
     if (assetData) {
       return {
         coin,
-        activeWallets: parseInt(assetData.PriceUSD ? 100000 : 0),
-        activeWalletsGrowth: parseFloat(assetData.CapMrktCurUSD ? 1.0 : 0),
-        largeTransactions: parseInt(assetData.CapMrktCurUSD ? 500 : 0),
+        activeWallets: parseInt(assetData.AdrActCnt || 100000),
+        activeWalletsGrowth: parseFloat(assetData.AdrActCntGrowth || 1.0),
+        largeTransactions: parseInt(assetData.TxCnt || 500),
         timestamp: new Date().toISOString(),
       };
     }
@@ -170,15 +155,11 @@ const fetchSocialSentiment = async (coin: string): Promise<number> => {
     console.log(`Parsed XML data for ${coin}:`, xmlData);
 
     const items = xmlData.feed?.entry || [];
-    const coinRegex = new RegExp(`${coin}`, 'i');
+    const coinRegex = new RegExp(`\\b${coin}\\b`, 'i');
     const relevantPosts = items
       .filter((item: any) => coinRegex.test(item.title?.['#text'] || ''))
       .slice(0, 5)
-      .map((item: any) => {
-        const title = item.title?.['#text'] || '';
-        console.log(`Matched title for ${coin}:`, title);
-        return title;
-      });
+      .map((item: any) => item.title?.['#text'] || '');
 
     if (relevantPosts.length === 0) {
       console.log(`No relevant Reddit posts found for ${coin}`);
