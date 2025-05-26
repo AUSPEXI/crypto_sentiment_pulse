@@ -1,6 +1,7 @@
-// EventAlerts.tsx
+// src/components/EventAlerts.tsx
 import React, { useState, useEffect } from 'react';
-import { fetchEvents, STATIC_NEWS, Event } from '../utils/api';
+import { fetchEvents } from '../utils/api';
+import { Event } from '../types';
 
 interface EventAlertsProps {
   coin: string;
@@ -8,56 +9,42 @@ interface EventAlertsProps {
 
 const EventAlerts: React.FC<EventAlertsProps> = ({ coin }) => {
   const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    let isMounted = true;
-
-    const loadEvents = async () => {
-      setIsLoading(true);
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
       try {
         const fetchedEvents = await fetchEvents(coin);
-        if (isMounted) {
-          setEvents(fetchedEvents.length > 0 ? fetchedEvents : STATIC_NEWS[coin] || []);
-        }
+        setEvents(fetchedEvents);
       } catch (err) {
-        console.error('Error in EventAlerts:', err);
-        if (isMounted) {
-          setError('Failed to load events');
-          setEvents(STATIC_NEWS[coin] || []);
-        }
+        console.error(`Error fetching events for ${coin}:`, err);
+        setError('Failed to fetch events. Please try again later.');
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        setLoading(false);
       }
     };
 
-    loadEvents();
+    fetchData();
+    const intervalId = setInterval(fetchData, 15 * 60 * 1000); // Refresh every 15 minutes
+    return () => clearInterval(intervalId);
+  }, [coin]);
 
-    return () => {
-      isMounted = false; // Cleanup to prevent state updates on unmounted component
-    };
-  }, [coin]); // Dependency on coin to re-fetch only when coin changes
-
-  if (isLoading) return <div>Loading events...</div>;
-  if (error) return <div>Error: {error}</div>;
+  if (loading) return <span className="text-gray-500">Loading events...</span>;
+  if (error) return <span className="text-red-500">{error}</span>;
+  if (events.length === 0) return <span className="text-gray-500">No events</span>;
 
   return (
-    <div>
-      <h3>Events for {coin}</h3>
-      {events.length === 0 ? (
-        <p>No events available.</p>
-      ) : (
-        <ul>
-          {events.map((event, index) => (
-            <li key={index}>
-              <strong>{event.title}</strong>: {event.description} ({event.publishedAt})
-            </li>
-          ))}
-        </ul>
-      )}
+    <div className="space-y-2">
+      {events.map((event, index) => (
+        <div key={index} className="bg-gray-50 p-2 rounded-md text-sm">
+          <strong>{event.title}</strong>
+          <p className="text-gray-600 text-xs">{event.date} - {event.source}</p>
+          <p className="text-gray-700 text-xs">{event.description}</p>
+        </div>
+      ))}
     </div>
   );
 };
