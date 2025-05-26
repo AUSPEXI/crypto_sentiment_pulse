@@ -1,5 +1,6 @@
 // src/api.ts
 import axios from 'axios';
+import { XMLParser } from 'fast-xml-parser'; // Added for future parsing (to be enabled after install)
 import { SentimentData, OnChainData, Event } from '../types';
 
 // Log environment variables globally
@@ -142,9 +143,9 @@ const fetchSocialSentiment = async (coin: string): Promise<number> => {
     const data = await makeProxiedRequest('reddit', 'r/CryptoCurrency.rss', params);
     console.log(`Reddit raw response for ${coin}:`, data);
 
-    // Temporarily skip parsing due to xml2js compatibility issue
+    // Temporarily skip parsing due to xml2js compatibility issue until fast-xml-parser is installed
     console.log(`Skipping Reddit parsing for ${coin} due to xml2js compatibility issue`);
-    return 0; // Default sentiment score until fast-xml-parser is installed
+    return 0; // Default sentiment score until parsing is enabled
   } catch (error) {
     console.error(`Error fetching social sentiment for ${coin} from Reddit:`, error.message, error.stack);
     return 0;
