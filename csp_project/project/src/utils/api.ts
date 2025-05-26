@@ -7,7 +7,7 @@ const SUPPORTED_COINS = {
   BTC: { symbol: 'BTC', coinMetrics: 'bitcoin' },
   ETH: { symbol: 'ETH', coinMetrics: 'ethereum' },
   USDT: { symbol: 'USDT', coinMetrics: 'tether' },
-  SOL: { symbol: 'SOL', coinMetrics: 'solana' }, // Added SOL
+  SOL: { symbol: 'SOL', coinMetrics: 'solana' },
 };
 
 // Static data fallbacks
@@ -15,14 +15,14 @@ const STATIC_WALLET_DATA = {
   BTC: { coin: 'BTC', activeWallets: 100000, activeWalletsGrowth: 2.1, largeTransactions: 500, timestamp: new Date().toISOString() },
   ETH: { coin: 'ETH', activeWallets: 75000, activeWalletsGrowth: 1.5, largeTransactions: 400, timestamp: new Date().toISOString() },
   USDT: { coin: 'USDT', activeWallets: 20000, activeWalletsGrowth: 0.2, largeTransactions: 600, timestamp: new Date().toISOString() },
-  SOL: { coin: 'SOL', activeWallets: 50000, activeWalletsGrowth: 1.8, largeTransactions: 300, timestamp: new Date().toISOString() }, // Added fallback for SOL
+  SOL: { coin: 'SOL', activeWallets: 50000, activeWalletsGrowth: 1.8, largeTransactions: 300, timestamp: new Date().toISOString() },
 };
 
 const STATIC_PRICE_CHANGES = {
   BTC: 1.02,
   ETH: 0.78,
   USDT: 0.84,
-  SOL: 0.90, // Added fallback for SOL
+  SOL: 0.90,
 };
 
 // Interface definitions
@@ -39,6 +39,13 @@ interface SentimentData {
   score: number;
   socialScore: number;
   timestamp: string;
+}
+
+interface Event {
+  title: string;
+  description: string;
+  url: string;
+  publishedAt: string;
 }
 
 // Helper function for proxied requests
@@ -72,6 +79,24 @@ const fetchRecentNews = async (coin: string): Promise<string> => {
   return data.articles.map((article: any) => article.title + ' ' + article.description).join(' ');
 };
 
+// Fetch events
+export const fetchEvents = async (coin: string): Promise<Event[]> => {
+  console.log('Fetching events for', coin, 'via proxy');
+  const params = { q: coin, language: 'en', pageSize: 5 };
+  try {
+    const data = await makeProxiedRequest('newsapi', 'top-headlines', params);
+    return data.articles.map((article: any) => ({
+      title: article.title,
+      description: article.description || '',
+      url: article.url,
+      publishedAt: article.publishedAt,
+    }));
+  } catch (error) {
+    console.error(`Error fetching events for ${coin}:`, error.message);
+    return [];
+  }
+};
+
 // Fetch on-chain data
 export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
   console.log('Fetching on-chain data for', coin);
@@ -89,7 +114,7 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
     const data = await makeProxiedRequest('coinmetrics', 'timeseries/asset-metrics', params);
     console.log(`CoinMetrics raw response for ${coin}:`, data);
 
-    const assetData = data.data?.[0]; // Simplified parsing for testing
+    const assetData = data.data?.[0];
     if (assetData) {
       return {
         coin,
