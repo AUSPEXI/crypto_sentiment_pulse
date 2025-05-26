@@ -28,7 +28,7 @@ const EventAlerts: React.FC<EventAlertsProps> = ({ coin }) => {
     };
 
     fetchData();
-    const intervalId = setInterval(fetchData, 15 * 60 * 1000); // Refresh every 15 minutes
+    const intervalId = setInterval(fetchData, 15 * 60 * 1000);
     return () => clearInterval(intervalId);
   }, [coin]);
 
