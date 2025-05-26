@@ -56,21 +56,23 @@ const makeProxiedRequest = async (api: string, endpoint: string, params: any, me
   const proxyUrl = '/api/proxy';
   console.log(`Making proxied request to ${api}/${endpoint} with params:`, params);
   try {
-    const response = await axios({
+    const config: any = {
       method,
       url: proxyUrl,
-      params: {
-        api,
-        endpoint,
-        params: JSON.stringify(params),
-      },
       timeout: 10000,
-    });
+    };
+    // For POST requests, send params in the body; for GET, use query params
+    if (method === 'POST') {
+      config.data = { api, endpoint, params }; // Send params in body
+    } else {
+      config.params = { api, endpoint, params: JSON.stringify(params) };
+    }
+    const response = await axios(config);
     console.log(`Proxy response for ${api}/${endpoint}:`, response.data);
     return response.data;
   } catch (error) {
     console.error(`Proxied request failed for ${api}/${endpoint}:`, error.response?.data || error.message);
-    throw new Error(`Proxied request failed: ${error.response?.data?.error || error.message}`);
+    throw new Error(`Proxied request failed: ${error.response?.status || error.message}`);
   }
 };
 
@@ -79,7 +81,9 @@ const fetchRecentNews = async (coin: string): Promise<string> => {
   console.log('Fetching news for', coin, 'via proxy');
   const params = { q: coin, language: 'en', sortBy: 'publishedAt' };
   const data = await makeProxiedRequest('newsapi', 'everything', params);
-  return data.articles.map((article: any) => article.title + ' ' + article.description).join(' ');
+  const newsText = data.articles.map((article: any) => article.title + ' ' + article.description).join(' ');
+  // Truncate to avoid overly long prompts
+  return newsText.length > 1000 ? newsText.substring(0, 1000) + '...' : newsText;
 };
 
 // Fetch events
@@ -107,11 +111,14 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
   if (!coinInfo) throw new Error(`Unsupported coin: ${coin}`);
 
   try {
+    // Use historical dates (last 7 days up to today)
+    const endDate = new Date().toISOString().split('T')[0]; // e.g., '2025-05-26'
+    const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 7 days ago
     const params = {
       assets: coinInfo.coinMetrics,
-      metrics: 'ActiveAddresses,TxCount',
-      start_time: '2025-05-25',
-      end_time: '2025-05-26',
+      metrics: 'AdrActCnt,TxCnt', // Updated metrics to match CoinMetrics API
+      start_time: startDate,
+      end_time: endDate,
     };
     console.log(`CoinMetrics request params:`, params);
     const data = await makeProxiedRequest('coinmetrics', 'timeseries/asset-metrics', params);
@@ -121,9 +128,9 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
     if (assetData) {
       return {
         coin,
-        activeWallets: parseInt(assetData.ActiveAddresses || 100000),
-        activeWalletsGrowth: parseFloat(assetData.ActiveAddressesGrowth || 1.0),
-        largeTransactions: parseInt(assetData.TxCount || 500),
+        activeWallets: parseInt(assetData.AdrActCnt || 100000),
+        activeWalletsGrowth: parseFloat(assetData.AdrActCntGrowth || 1.0),
+        largeTransactions: parseInt(assetData.TxCnt || 500),
         timestamp: new Date().toISOString(),
       };
     }
