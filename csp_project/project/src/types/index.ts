@@ -1,20 +1,18 @@
 // src/types/index.ts
-export interface SentimentData {
-  coin: string;
-  positive: number; // Optional, for display
-  negative: number; // Optional, for display
-  neutral: number; // Optional, for display
-  score: number;   // -10 to 10
-  socialScore?: number; // -10 to 10, optional
-  timestamp: string;
+export interface Coin {
+  id: string;
+  symbol: string;
+  name: string;
+  coinMetrics: string; // Added for CoinMetrics API
 }
 
 export interface SentimentData {
   coin: string;
-  positive: number;
-  negative: number;
-  neutral: number;
-  score: number;
+  positive?: number; // Optional, for display
+  negative?: number; // Optional, for display
+  neutral?: number; // Optional, for display
+  score: number;    // -10 to 10
+  socialScore?: number; // -10 to 10, optional
   timestamp: string;
 }
 
@@ -27,12 +25,14 @@ export interface OnChainData {
 }
 
 export interface Event {
-  id: string;
-  coin: string;
-  date: string;
+  id?: string; // Made optional to align with api.ts usage
+  coin?: string; // Made optional since not always used
+  date?: string; // Made optional to align with api.ts
   title: string;
   description: string;
-  eventType: string;
+  eventType?: string; // Made optional since not used in api.ts
+  url?: string; // Added to align with api.ts
+  publishedAt?: string; // Added to align with api.ts
 }
 
 export interface PortfolioItem {
@@ -54,31 +54,25 @@ export interface DatasetEntry {
   eventImpactScore: number;
 }
 
-export interface Coin {
-  id: string;
-  symbol: string;
-  name: string;
-}
-
 export const AVAILABLE_COINS: Coin[] = [
-  { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin' },
-  { id: 'ethereum', symbol: 'ETH', name: 'Ethereum' },
-  { id: 'tether', symbol: 'USDT', name: 'Tether' },
-  { id: 'binance-coin', symbol: 'BNB', name: 'BNB' },
-  { id: 'solana', symbol: 'SOL', name: 'Solana' },
-  { id: 'usd-coin', symbol: 'USDC', name: 'USDC' },
-  { id: 'xrp', symbol: 'XRP', name: 'XRP' },
-  { id: 'dogecoin', symbol: 'DOGE', name: 'Dogecoin' },
-  { id: 'toncoin', symbol: 'TON', name: 'TON' },
-  { id: 'cardano', symbol: 'ADA', name: 'Cardano' },
-  { id: 'tron', symbol: 'TRX', name: 'TRON' },
-  { id: 'avalanche', symbol: 'AVAX', name: 'Avalanche' },
-  { id: 'shiba-inu', symbol: 'SHIB', name: 'Shiba Inu' },
-  { id: 'chainlink', symbol: 'LINK', name: 'Chainlink' },
-  { id: 'bitcoin-cash', symbol: 'BCH', name: 'Bitcoin Cash' },
-  { id: 'polkadot', symbol: 'DOT', name: 'Polkadot' },
-  { id: 'near-protocol', symbol: 'NEAR', name: 'NEAR Protocol' },
-  { id: 'litecoin', symbol: 'LTC', name: 'Litecoin' },
-  { id: 'polygon', symbol: 'MATIC', name: 'Polygon' },
-  { id: 'pepe', symbol: 'PEPE', name: 'Pepe' }
+  { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', coinMetrics: 'btc' },
+  { id: 'ethereum', symbol: 'ETH', name: 'Ethereum', coinMetrics: 'eth' },
+  { id: 'tether', symbol: 'USDT', name: 'Tether', coinMetrics: 'usdt' },
+  { id: 'binance-coin', symbol: 'BNB', name: 'BNB', coinMetrics: 'bnb' },
+  { id: 'solana', symbol: 'SOL', name: 'Solana', coinMetrics: 'sol' },
+  { id: 'usd-coin', symbol: 'USDC', name: 'USDC', coinMetrics: 'usdc' },
+  { id: 'xrp', symbol: 'XRP', name: 'XRP', coinMetrics: 'xrp' },
+  { id: 'dogecoin', symbol: 'DOGE', name: 'Dogecoin', coinMetrics: 'doge' },
+  { id: 'toncoin', symbol: 'TON', name: 'TON', coinMetrics: 'ton' },
+  { id: 'cardano', symbol: 'ADA', name: 'Cardano', coinMetrics: 'ada' },
+  { id: 'tron', symbol: 'TRX', name: 'TRON', coinMetrics: 'trx' },
+  { id: 'avalanche', symbol: 'AVAX', name: 'Avalanche', coinMetrics: 'avax' },
+  { id: 'shiba-inu', symbol: 'SHIB', name: 'Shiba Inu', coinMetrics: 'shib' },
+  { id: 'chainlink', symbol: 'LINK', name: 'Chainlink', coinMetrics: 'link' },
+  { id: 'bitcoin-cash', symbol: 'BCH', name: 'Bitcoin Cash', coinMetrics: 'bch' },
+  { id: 'polkadot', symbol: 'DOT', name: 'Polkadot', coinMetrics: 'dot' },
+  { id: 'near-protocol', symbol: 'NEAR', name: 'NEAR Protocol', coinMetrics: 'near' },
+  { id: 'litecoin', symbol: 'LTC', name: 'Litecoin', coinMetrics: 'ltc' },
+  { id: 'polygon', symbol: 'MATIC', name: 'Polygon', coinMetrics: 'matic' },
+  { id: 'pepe', symbol: 'PEPE', name: 'Pepe', coinMetrics: 'pepe' },
 ];
