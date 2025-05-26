@@ -1,19 +1,20 @@
 [build]
-  base = "/opt/build/repo/csp_project/project"
+  base = "csp_project/project"
   command = "npm run build"
   commandOrigin = "config"
-  environment = [
-    "NEWSAPI_API_KEY",
-    "VITE_CRYPTOPANIC_API_TOKEN",
-    "VITE_HUGGINGFACE_API_KEY",
-    "VITE_OPENAI_API_KEY",
-    "VITE_SANTIMENT_API_KEY"
-  ]
-  publish = "/opt/build/repo/csp_project/project/dist"
+  publish = "dist"
   publishOrigin = "config"
 
+[build.environment]
+  NEWSAPI_API_KEY = ""
+  VITE_CRYPTOPANIC_API_TOKEN = ""
+  VITE_HUGGINGFACE_API_KEY = ""
+  VITE_OPENAI_API_KEY = ""
+  VITE_SANTIMENT_API_KEY = ""
+  COINMETRICS_API_KEY = ""
+
 [functions]
-  directory = "/opt/build/repo/csp_project/project/netlify/functions"
+  directory = "netlify/functions"
 
 [[redirects]]
   from = "/api/proxy/*"
