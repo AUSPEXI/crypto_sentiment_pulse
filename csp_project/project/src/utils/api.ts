@@ -92,7 +92,7 @@ const NEWSAPI_API_KEY = import.meta.env.VITE_NEWSAPI_API_KEY || 'missing';
 
 // Helper to make proxied API requests
 const makeProxiedRequest = async (api: string, endpoint: string, params: any) => {
-  const proxyUrl = '/.netlify/functions/proxy';
+  const proxyUrl = '/api/proxy'; // Updated path to match netlify.toml redirect
   console.log(`Making proxied request to ${api}/${endpoint} with params:`, params);
   try {
     const response = await axios.get(proxyUrl, {
