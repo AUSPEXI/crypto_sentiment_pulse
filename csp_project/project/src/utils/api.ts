@@ -10,6 +10,9 @@ const SUPPORTED_COINS = {
   SOL: { symbol: 'SOL', coinMetrics: 'solana' },
 };
 
+// Export STATIC_COINS for use in PortfolioTracker.tsx
+export const STATIC_COINS = Object.keys(SUPPORTED_COINS);
+
 // Static data fallbacks
 const STATIC_WALLET_DATA = {
   BTC: { coin: 'BTC', activeWallets: 100000, activeWalletsGrowth: 2.1, largeTransactions: 500, timestamp: new Date().toISOString() },
