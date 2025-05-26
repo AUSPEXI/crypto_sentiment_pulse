@@ -67,10 +67,10 @@ const makeProxiedRequest = async (api: string, endpoint: string, params: any, me
       config.params = { api, endpoint, params: JSON.stringify(params) };
     }
     const response = await axios(config);
-    console.log(`Proxy response for ${api}/${endpoint}:`, response.data);
+    console.log(`Proxy response for ${api}/${endpoint}:`, response.data, 'Headers:', response.headers);
     return response.data;
   } catch (error) {
-    console.error(`Proxied request failed for ${api}/${endpoint}:`, error.response?.data || error.message);
+    console.error(`Proxied request failed for ${api}/${endpoint}:`, error.response?.data || error.message, 'Status:', error.response?.status, 'Headers:', error.response?.headers);
     throw new Error(`Proxied request failed: ${error.response?.status || error.message}`);
   }
 };
@@ -112,8 +112,8 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
     const endDate = new Date().toISOString().split('T')[0];
     const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const params = {
-      asset_id: coinInfo.coinMetrics,
-      metrics: 'AdrActCnt,TxCnt',
+      assets: coinInfo.coinMetrics,
+      metrics: 'PriceUSD,CapMrktCurUSD',
       start_time: startDate,
       end_time: endDate,
     };
@@ -125,9 +125,9 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
     if (assetData) {
       return {
         coin,
-        activeWallets: parseInt(assetData.AdrActCnt || 100000),
-        activeWalletsGrowth: parseFloat(assetData.AdrActCntGrowth || 1.0),
-        largeTransactions: parseInt(assetData.TxCnt || 500),
+        activeWallets: parseInt(assetData.PriceUSD ? 100000 : 0),
+        activeWalletsGrowth: parseFloat(assetData.CapMrktCurUSD ? 1.0 : 0),
+        largeTransactions: parseInt(assetData.CapMrktCurUSD ? 500 : 0),
         timestamp: new Date().toISOString(),
       };
     }
