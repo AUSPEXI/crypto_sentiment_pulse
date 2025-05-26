@@ -1,291 +1,144 @@
-// api.ts
+// src/utils/api.ts
 import axios from 'axios';
-import { XMLParser } from 'fast-xml-parser';
 
-// Define supported coins
-const SUPPORTED_COINS = {
-  BTC: { symbol: 'BTC', coinMetrics: 'btc' },
-  ETH: { symbol: 'ETH', coinMetrics: 'eth' },
-  USDT: { symbol: 'USDT', coinMetrics: 'usdt' },
-  SOL: { symbol: 'SOL', coinMetrics: 'sol' },
-};
+export const STATIC_COINS = [
+  { symbol: 'BTC', name: 'Bitcoin' },
+  { symbol: 'ETH', name: 'Ethereum' },
+  { symbol: 'USDT', name: 'Tether' },
+];
 
-// Export STATIC_COINS for use in PortfolioTracker.tsx
-export const STATIC_COINS = Object.keys(SUPPORTED_COINS);
+const PROXY_URL = '/.netlify/functions/proxy'; // Proxy endpoint for Netlify functions
 
-// Static data fallbacks
-const STATIC_WALLET_DATA = {
-  BTC: { coin: 'BTC', activeWallets: 100000, activeWalletsGrowth: 2.1, largeTransactions: 500, timestamp: new Date().toISOString() },
-  ETH: { coin: 'ETH', activeWallets: 75000, activeWalletsGrowth: 1.5, largeTransactions: 400, timestamp: new Date().toISOString() },
-  USDT: { coin: 'USDT', activeWallets: 20000, activeWalletsGrowth: 0.2, largeTransactions: 600, timestamp: new Date().toISOString() },
-  SOL: { coin: 'SOL', activeWallets: 50000, activeWalletsGrowth: 1.8, largeTransactions: 300, timestamp: new Date().toISOString() },
-};
+const sentimentCache: Record<string, { score: number; timestamp: number }> = {};
 
-const STATIC_PRICE_CHANGES = {
-  BTC: 1.02,
-  ETH: 0.78,
-  USDT: 0.84,
-  SOL: 0.90,
-};
+interface SentimentData {
+  score: number;
+}
 
-// Static news fallback for EventAlerts.tsx
-export const STATIC_NEWS: { [key: string]: Event[] } = {
-  BTC: [
-    { title: "BTC price steady", description: "Bitcoin remains stable.", url: "", publishedAt: new Date().toISOString() },
-    { title: "BTC adoption grows", description: "More merchants accept BTC.", url: "", publishedAt: new Date().toISOString() },
-  ],
-  ETH: [
-    { title: "ETH network update", description: "Ethereum upgrade incoming.", url: "", publishedAt: new Date().toISOString() },
-    { title: "ETH staking rises", description: "More users stake ETH.", url: "", publishedAt: new Date().toISOString() },
-  ],
-  USDT: [
-    { title: "USDT volume up", description: "Tether transactions increase.", url: "", publishedAt: new Date().toISOString() },
-  ],
-  SOL: [
-    { title: "SOL ecosystem grows", description: "Solana projects expand.", url: "", publishedAt: new Date().toISOString() },
-  ],
-};
-
-// Interface definitions
-interface OnChainData {
+export interface OnChainData {
   coin: string;
   activeWallets: number;
   activeWalletsGrowth: number;
   largeTransactions: number;
-  timestamp: string;
-}
-
-interface SentimentData {
-  coin: string;
-  score: number;
-  socialScore: number;
-  timestamp: string;
 }
 
 export interface Event {
   title: string;
   description: string;
-  url: string;
-  publishedAt: string;
+  date: string;
+  source: string;
 }
 
-// Cache for sentiment data to prevent duplicate calls
-const sentimentCache: { [coin: string]: SentimentData } = {};
-
-// Helper function for proxied requests
-const makeProxiedRequest = async (api: string, endpoint: string, params: any, method: 'GET' | 'POST' = 'GET') => {
-  const proxyUrl = '/api/proxy';
-  console.log(`Making proxied request to ${api}/${endpoint} with params:`, params);
+const fetchWithProxy = async (endpoint: string, params: Record<string, any> = {}) => {
   try {
-    const config: any = {
-      method,
-      url: proxyUrl,
-      timeout: 10000,
-    };
-    if (method === 'POST') {
-      config.data = { api, endpoint, params };
-    } else {
-      config.params = { api, endpoint, params: JSON.stringify(params) };
-    }
-    const response = await axios(config);
-    console.log(`Proxy response for ${api}/${endpoint}:`, response.data, 'Headers:', response.headers);
+    const response = await axios.post(PROXY_URL, {
+      endpoint,
+      params,
+    });
     return response.data;
   } catch (error) {
-    console.error(`Proxied request failed for ${api}/${endpoint}:`, error.response?.data || error.message, 'Status:', error.response?.status, 'Headers:', error.response?.headers);
-    throw new Error(`Proxied request failed: ${error.response?.status || error.message}`);
+    console.error(`Proxy request failed for ${endpoint}:`, error);
+    throw error;
   }
 };
 
-// Fetch recent news
-const fetchRecentNews = async (coin: string): Promise<string> => {
-  console.log('Fetching news for', coin, 'via proxy');
-  const params = { q: coin, language: 'en', sortBy: 'publishedAt' };
-  const data = await makeProxiedRequest('newsapi', 'everything', params);
-  const newsText = data.articles.map((article: any) => article.title + ' ' + article.description).join(' ');
-  console.log(`News text for ${coin}:`, newsText); // Debug log
-  return newsText.length > 1000 ? newsText.substring(0, 1000) + '...' : newsText;
-};
-
-// Fetch events
-export const fetchEvents = async (coin: string = 'BTC'): Promise<Event[]> => {
-  console.log('Fetching events for', coin, 'via proxy');
-  const params = { q: coin, language: 'en', pageSize: 5 };
-  try {
-    const data = await makeProxiedRequest('newsapi', 'everything', params);
-    console.log('Raw events data for', coin, ':', data);
-    console.log('Articles for', coin, ':', data.articles); // Debug articles array
-    if (!data.articles || !Array.isArray(data.articles) || data.articles.length === 0) {
-      console.warn('No articles found for', coin, ', falling back to STATIC_NEWS');
-      return STATIC_NEWS[coin] || [];
-    }
-    const events = data.articles
-      .map((article: any) => ({
-        title: article.title || 'No title',
-        description: article.description || 'No description',
-        url: article.url || '',
-        publishedAt: article.publishedAt || new Date().toISOString(),
-      }))
-      .filter((event: Event) => event.title && event.publishedAt); // Filter out invalid events
-    console.log('Mapped events for', coin, ':', events);
-    return events.length > 0 ? events : STATIC_NEWS[coin] || [];
-  } catch (error) {
-    console.error(`Error fetching events for ${coin}:`, error.message);
-    return STATIC_NEWS[coin] || [];
-  }
-};
-
-// Fetch on-chain data
-export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
-  console.log('Fetching on-chain data for', coin);
-  const coinInfo = SUPPORTED_COINS[coin];
-  if (!coinInfo) throw new Error(`Unsupported coin: ${coin}`);
-
-  try {
-    const endDate = new Date().toISOString().split('T')[0];
-    const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const params = {
-      assets: coinInfo.coinMetrics,
-      metrics: 'PriceUSD,CapMrktCurUSD',
-      start_time: startDate,
-      end_time: endDate,
-    };
-    console.log(`CoinMetrics request params:`, params);
-    const data = await makeProxiedRequest('coinmetrics', 'timeseries/asset-metrics', params);
-    console.log(`CoinMetrics raw response for ${coin}:`, data);
-
-    const assetData = data.data?.[0];
-    if (assetData) {
-      const activeWallets = parseInt(assetData.PriceUSD ? 100000 : 0);
-      const activeWalletsGrowth = parseFloat(assetData.CapMrktCurUSD ? 1.0 : 0);
-      const largeTransactions = parseInt(assetData.CapMrktCurUSD ? 500 : 0);
-      console.log(`On-chain data for ${coin}:`, { activeWallets, activeWalletsGrowth, largeTransactions });
-      return {
-        coin,
-        activeWallets,
-        activeWalletsGrowth,
-        largeTransactions,
-        timestamp: new Date().toISOString(),
-      };
-    }
-    throw new Error('No data found for asset');
-  } catch (error) {
-    console.error(`Error fetching on-chain data for ${coin} via CoinMetrics:`, error.message, error.response?.data, error.response?.status, error.response?.headers);
-    const staticData = STATIC_WALLET_DATA[coin] || { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: new Date().toISOString() };
-    return staticData;
-  }
-};
-
-// Fetch social sentiment
-const parser = new XMLParser({ ignoreAttributes: false, parseAttributeValue: true });
-
-const fetchSocialSentiment = async (coin: string): Promise<number> => {
-  console.log('Fetching sentiment for', coin, 'via proxy');
-  try {
-    const params = {};
-    const data = await makeProxiedRequest('reddit', 'r/CryptoCurrency.rss', params);
-    console.log(`Reddit raw response for ${coin}:`, data);
-    const xmlData = parser.parse(data);
-    console.log(`Parsed XML data for ${coin}:`, xmlData);
-
-    const items = xmlData.feed?.entry || [];
-    const coinRegex = new RegExp(`\\b(${coin}|${coin.toLowerCase()})\\b`, 'i');
-    const relevantPosts = items
-      .filter((item: any) => {
-        const title = item.title?.['#text'] || '';
-        const content = item.content?.['#text'] || '';
-        const match = coinRegex.test(title) || coinRegex.test(content);
-        if (match) console.log(`Matched post for ${coin}:`, { title, content });
-        return match;
-      })
-      .slice(0, 5)
-      .map((item: any) => {
-        const title = item.title?.['#text'] || '';
-        const content = item.content?.['#text'] || '';
-        console.log(`Matched title/content for ${coin}:`, { title, content });
-        return title + (content ? ` ${content.substring(0, 100)}...` : '');
-      });
-
-    if (relevantPosts.length === 0) {
-      console.log(`No relevant Reddit posts found for ${coin}`);
-      return 0;
-    }
-
-    const fewShotExamples = [
-      "Instruction: Analyze sentiment of 'BTC price up 5% today!'\n### Answer: 7",
-      "Instruction: Analyze sentiment of 'ETH crash incoming'\n### Answer: -6",
-      "Instruction: Analyze sentiment of 'SOL network stable'\n### Answer: 4",
-      "Instruction: Analyze sentiment of 'XRP lawsuit news'\n### Answer: -3",
-      "Instruction: Analyze sentiment of 'ADA great project'\n### Answer: 6",
-      "Instruction: Analyze sentiment of 'DOGE to the moon'\n### Answer: 8",
-      "Instruction: Analyze sentiment of 'SHIB scam alert'\n### Answer: -8",
-      "Instruction: Analyze sentiment of 'LTC steady gains'\n### Answer: 5"
-    ].join('\n\n');
-
-    const prompt = `${fewShotExamples}\n\nInstruction: Analyze the sentiment of the following Reddit post titles and content snippets about ${coin} and provide a score between -10 (very negative) and 10 (very positive):\n\n${relevantPosts.join('\n')}\n### Answer:`;
-
-    const openAiParams = {
-      model: 'gpt-3.5-turbo',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 60,
-      temperature: 0.5,
-    };
-    const sentimentResponse = await makeProxiedRequest('openai', 'chat/completions', openAiParams, 'POST');
-
-    const sentimentText = sentimentResponse.choices[0].message.content.trim();
-    const socialScore = parseFloat(sentimentText) || 0;
-    console.log(`Reddit sentiment score for ${coin}: ${socialScore}`);
-    return Math.min(Math.max(socialScore, -10), 10);
-  } catch (error) {
-    console.error(`Error fetching social sentiment for ${coin} from Reddit:`, error.message, error.stack);
-    return 0;
-  }
-};
-
-// Fetch sentiment data
 export const fetchSentimentData = async (coin: string): Promise<SentimentData> => {
-  console.log('Fetching sentiment data for', coin);
-  if (sentimentCache[coin]) {
-    console.log(`Returning cached sentiment data for ${coin}:`, sentimentCache[coin]);
-    return sentimentCache[coin];
+  const cacheKey = `${coin}-sentiment`;
+  const cached = sentimentCache[cacheKey];
+  if (cached && Date.now() - cached.timestamp < 5 * 60 * 1000) {
+    console.log(`Returning cached sentiment data for ${coin}:`, cached.score);
+    return { score: cached.score };
   }
 
-  const coinInfo = SUPPORTED_COINS[coin];
-  if (!coinInfo) throw new Error(`Unsupported coin: ${coin}`);
+  console.log(`Fetching sentiment data for ${coin}`);
 
-  let newsScore = 0;
-  let socialScore = 0;
+  // Fetch news
+  console.log(`Fetching news for ${coin} via proxy`);
+  const newsParams = { q: coin, language: 'en', pageSize: 5 };
+  const newsResponse = await fetchWithProxy('newsapi/everything', newsParams);
+  console.log(`Making proxied request to newsapi/everything with params:`, newsParams);
+  const newsText = newsResponse.articles.map((article: any) => article.title + ' ' + article.description).join(' ');
+  console.log(`News text for ${coin}:`, newsText);
 
-  try {
-    const newsText = await fetchRecentNews(coin);
-    const openAiParams = {
-      model: 'gpt-3.5-turbo',
-      messages: [{ role: 'user', content: `Analyze the sentiment of the following text about ${coin} and provide a score between -10 (very negative) and 10 (very positive):\n\n${newsText}` }],
-      max_tokens: 60,
-      temperature: 0.5,
-    };
-    const newsResponse = await makeProxiedRequest('openai', 'chat/completions', openAiParams, 'POST');
-    newsScore = parseFloat(newsResponse.choices[0].message.content.trim()) || 0;
-    console.log(`News sentiment score for ${coin}: ${newsScore}`);
+  // Fetch events
+  console.log(`Fetching events for ${coin} via proxy`);
+  const eventsResponse = await fetchWithProxy('newsapi/everything', newsParams);
+  console.log(`Making proxied request to newsapi/everything with params:`, newsParams);
+  const rawEvents = eventsResponse.articles;
+  console.log(`Raw events data for ${coin}:`, rawEvents);
+  const articles = rawEvents.map((article: any) => ({
+    title: article.title,
+    description: article.description,
+    date: article.publishedAt,
+    source: article.source.name,
+  }));
+  console.log(`Articles for ${coin}:`, articles);
+  const mappedEvents = articles.map((article: any): Event => ({
+    title: article.title,
+    description: article.description,
+    date: article.date,
+    source: article.source,
+  }));
+  console.log(`Mapped events for ${coin}:`, mappedEvents);
 
-    const onChainData = await fetchOnChainData(coin);
-    const normalizedWalletGrowth = Math.min(Math.max(onChainData.activeWalletsGrowth / 10, -1), 1);
-    const normalizedLargeTransactions = Math.min(onChainData.largeTransactions / 5000, 1);
+  // Fetch on-chain data
+  console.log(`Fetching on-chain data for ${coin}`);
+  const coinMetricsParams = { assets: coin, metrics: 'AdrActCnt,AdrActCntChg24h,NVt10Day' };
+  console.log(`CoinMetrics request params:`, coinMetricsParams);
+  const coinMetricsResponse = await fetchWithProxy('coinmetrics/timeseries/asset-metrics', coinMetricsParams);
+  console.log(`Making proxied request to coinmetrics/timeseries/asset-metrics with params:`, coinMetricsParams);
+  console.log(`Proxy response for coinmetrics/timeseries/asset-metrics:`, coinMetricsResponse);
+  const rawData = coinMetricsResponse.data[0];
+  console.log(`CoinMetrics raw response for ${coin}:`, rawData);
+  const onChainData: OnChainData = {
+    coin,
+    activeWallets: rawData?.AdrActCnt || 0,
+    activeWalletsGrowth: rawData?.AdrActCntChg24h || 0,
+    largeTransactions: rawData?.NVt10Day || 0,
+  };
+  console.log(`On-chain data for ${coin}:`, onChainData);
 
-    socialScore = await fetchSocialSentiment(coin);
-
-    const sentimentScore = (0.5 * newsScore) + (0.2 * normalizedWalletGrowth * 10) + (0.2 * normalizedLargeTransactions * 10) + (0.1 * socialScore);
-    const finalScore = Math.min(Math.max(sentimentScore, -10), 10);
-
-    const sentimentData: SentimentData = { coin, score: finalScore, socialScore, timestamp: new Date().toISOString() };
-    sentimentCache[coin] = sentimentData;
-    console.log(`Sentiment for ${coin}: News=${newsScore}, WalletGrowth=${normalizedWalletGrowth * 10}, LargeTx=${normalizedLargeTransactions * 10}, Social=${socialScore}, Total=${finalScore}`);
-    return sentimentData;
-  } catch (error) {
-    console.error(`Error fetching sentiment for ${coin}, falling back to static data:`, error.response?.data || error.message || error);
-    const staticScore = STATIC_PRICE_CHANGES[coin] || 0;
-    const sentimentData: SentimentData = { coin, score: staticScore, socialScore: 0, timestamp: new Date().toISOString() };
-    sentimentCache[coin] = sentimentData;
-    console.log(`Sentiment fallback for ${coin}: Static=${staticScore}`);
-    return sentimentData;
+  // Fetch Reddit sentiment
+  console.log(`Fetching sentiment for ${coin} via proxy`);
+  const redditResponse = await fetchWithProxy(`reddit/r/CryptoCurrency.rss`, { q: coin });
+  console.log(`Making proxied request to reddit/r/CryptoCurrency.rss with params:`, { q: coin });
+  console.log(`Reddit raw response for ${coin}:`, redditResponse);
+  const parser = new DOMParser();
+  const xmlDoc = parser.parseFromString(redditResponse, 'application/xml');
+  const entries = xmlDoc.getElementsByTagName('entry');
+  const matchedPosts: string[] = [];
+  for (let i = 0; i < entries.length; i++) {
+    const title = entries[i].getElementsByTagName('title')[0]?.textContent || '';
+    const content = entries[i].getElementsByTagName('content')[0]?.textContent || '';
+    if (title.toLowerCase().includes(coin.toLowerCase()) || content.toLowerCase().includes(coin.toLowerCase())) {
+      matchedPosts.push(title + ' ' + content);
+    }
   }
+  console.log(`Parsed XML data for ${coin}:`, xmlDoc);
+  console.log(`Matched post for ${coin}:`, matchedPosts);
+
+  const sentimentText = [newsText, ...matchedPosts].join(' ');
+  const sentimentParams = { prompt: `Analyze sentiment for ${coin} based on this text: ${sentimentText}`, max_tokens: 10 };
+  const sentimentResponse = await fetchWithProxy('openai/chat/completions', sentimentParams);
+  console.log(`Making proxied request to openai/chat/completions with params:`, sentimentParams);
+  console.log(`Proxy response for openai/chat/completions:`, sentimentResponse);
+  const newsSentimentScore = parseFloat(sentimentResponse.choices[0].message.content) || 0;
+  console.log(`News sentiment score for ${coin}:`, newsSentimentScore);
+
+  const redditSentimentParams = { prompt: `Analyze sentiment for ${coin} based on Reddit posts: ${matchedPosts.join(' ')}`, max_tokens: 10 };
+  const redditSentimentResponse = await fetchWithProxy('openai/chat/completions', redditSentimentParams);
+  console.log(`Making proxied request to openai/chat/completions with params:`, redditSentimentParams);
+  const redditSentimentScore = parseFloat(redditSentimentResponse.choices[0].message.content) || 0;
+  console.log(`Reddit sentiment score for ${coin}:`, redditSentimentScore);
+
+  const walletGrowthScore = onChainData.activeWalletsGrowth > 0 ? 1 : 0;
+  const largeTxScore = onChainData.largeTransactions > 100 ? 1 : 0;
+  const socialScore = redditSentimentScore;
+  const totalScore = (newsSentimentScore + walletGrowthScore + largeTxScore + socialScore) / 4;
+
+  const score = isNaN(totalScore) ? 0 : totalScore;
+  sentimentCache[cacheKey] = { score, timestamp: Date.now() };
+  console.log(`Sentiment for ${coin}: News=${newsSentimentScore}, WalletGrowth=${walletGrowthScore}, LargeTx=${largeTxScore}, Social=${socialScore}, Total=${totalScore}`);
+
+  return { score };
 };
