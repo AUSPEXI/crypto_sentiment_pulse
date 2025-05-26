@@ -1,12 +1,13 @@
 // api.ts
 import axios from 'axios';
-import { XMLParser } from 'fast-xml-parser'; // Ensure this is installed via package.json
+import { XMLParser } from 'fast-xml-parser';
 
 // Define supported coins
 const SUPPORTED_COINS = {
   BTC: { symbol: 'BTC', coinMetrics: 'bitcoin' },
   ETH: { symbol: 'ETH', coinMetrics: 'ethereum' },
   USDT: { symbol: 'USDT', coinMetrics: 'tether' },
+  SOL: { symbol: 'SOL', coinMetrics: 'solana' }, // Added SOL
 };
 
 // Static data fallbacks
@@ -14,12 +15,14 @@ const STATIC_WALLET_DATA = {
   BTC: { coin: 'BTC', activeWallets: 100000, activeWalletsGrowth: 2.1, largeTransactions: 500, timestamp: new Date().toISOString() },
   ETH: { coin: 'ETH', activeWallets: 75000, activeWalletsGrowth: 1.5, largeTransactions: 400, timestamp: new Date().toISOString() },
   USDT: { coin: 'USDT', activeWallets: 20000, activeWalletsGrowth: 0.2, largeTransactions: 600, timestamp: new Date().toISOString() },
+  SOL: { coin: 'SOL', activeWallets: 50000, activeWalletsGrowth: 1.8, largeTransactions: 300, timestamp: new Date().toISOString() }, // Added fallback for SOL
 };
 
 const STATIC_PRICE_CHANGES = {
   BTC: 1.02,
   ETH: 0.78,
   USDT: 0.84,
+  SOL: 0.90, // Added fallback for SOL
 };
 
 // Interface definitions
@@ -61,7 +64,7 @@ const makeProxiedRequest = async (api: string, endpoint: string, params: any, me
   }
 };
 
-// Fetch recent news (unchanged, using proxy)
+// Fetch recent news
 const fetchRecentNews = async (coin: string): Promise<string> => {
   console.log('Fetching news for', coin, 'via proxy');
   const params = { q: coin, language: 'en', sortBy: 'publishedAt' };
