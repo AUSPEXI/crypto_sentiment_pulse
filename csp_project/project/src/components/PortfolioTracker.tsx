@@ -1,8 +1,9 @@
 // src/components/PortfolioTracker.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { fetchSentimentData, STATIC_COINS } from '../utils/api';
 import { PortfolioItem } from '../types';
 import { Trash2 } from 'lucide-react';
+import EventAlerts from './EventAlerts'; // Import EventAlerts
 
 const DEFAULT_COINS = STATIC_COINS.map(coin => coin.symbol);
 
@@ -15,6 +16,7 @@ const PortfolioTracker: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showConsentPopup, setShowConsentPopup] = useState<boolean>(false);
 
+  // Load initial portfolio and consent from localStorage
   useEffect(() => {
     const savedPortfolio = localStorage.getItem('portfolio');
     if (savedPortfolio) {
@@ -36,48 +38,54 @@ const PortfolioTracker: React.FC = () => {
     }
   }, []);
 
+  // Sync portfolio to localStorage
   useEffect(() => {
     localStorage.setItem('portfolio', JSON.stringify(portfolio));
   }, [portfolio]);
 
+  // Sync dataConsent to localStorage
   useEffect(() => {
     localStorage.setItem('dataConsent', JSON.stringify(dataConsent));
   }, [dataConsent]);
 
-  useEffect(() => {
-    const updateSentimentScores = async () => {
-      if (portfolio.length === 0) return;
+  // Memoized updateSentimentScores to prevent unnecessary re-runs
+  const updateSentimentScores = useCallback(async () => {
+    if (portfolio.length === 0) return;
 
-      setLoading(true);
-      setError(null);
+    setLoading(true);
+    setError(null);
 
-      try {
-        const updatedPortfolio = [...portfolio];
+    try {
+      const updatedPortfolio = [...portfolio];
 
-        for (let i = 0; i < updatedPortfolio.length; i++) {
-          const item = updatedPortfolio[i];
-          if (item.quantity === 0) continue;
-          const sentimentData = await fetchSentimentData(item.coin);
-          updatedPortfolio[i] = {
-            ...item,
-            sentimentScore: sentimentData.score
-          };
-        }
-
-        setPortfolio(updatedPortfolio);
-      } catch (err) {
-        setError('Failed to update sentiment scores. Please try again later.');
-        console.error(err);
-      } finally {
-        setLoading(false);
+      for (let i = 0; i < updatedPortfolio.length; i++) {
+        const item = updatedPortfolio[i];
+        if (item.quantity === 0 || item.sentimentScore !== undefined) continue; // Skip if zero quantity or already fetched
+        const sentimentData = await fetchSentimentData(item.coin);
+        updatedPortfolio[i] = {
+          ...item,
+          sentimentScore: sentimentData.score,
+        };
       }
-    };
 
+      setPortfolio(prev => {
+        const shouldUpdate = prev.some((item, idx) => item.sentimentScore !== updatedPortfolio[idx].sentimentScore);
+        return shouldUpdate ? updatedPortfolio : prev; // Only update if scores differ
+      });
+    } catch (err) {
+      setError('Failed to update sentiment scores. Please try again later.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [portfolio.length]); // Dependency on length to trigger on initial load or size change
+
+  // Initial call and interval
+  useEffect(() => {
     updateSentimentScores();
-
-    const intervalId = setInterval(updateSentimentScores, 60 * 60 * 1000);
+    const intervalId = setInterval(updateSentimentScores, 60 * 60 * 1000); // Update hourly
     return () => clearInterval(intervalId);
-  }, [portfolio.length]);
+  }, [updateSentimentScores]);
 
   const handleAddCoin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,7 +100,7 @@ const PortfolioTracker: React.FC = () => {
       const updatedPortfolio = [...portfolio];
       updatedPortfolio[existingIndex] = {
         ...updatedPortfolio[existingIndex],
-        quantity: updatedPortfolio[existingIndex].quantity + parseFloat(newQuantity)
+        quantity: updatedPortfolio[existingIndex].quantity + parseFloat(newQuantity),
       };
       setPortfolio(updatedPortfolio);
     } else {
@@ -100,8 +108,8 @@ const PortfolioTracker: React.FC = () => {
         ...portfolio,
         {
           coin: newCoin,
-          quantity: parseFloat(newQuantity)
-        }
+          quantity: parseFloat(newQuantity),
+        },
       ]);
     }
 
@@ -272,6 +280,9 @@ const PortfolioTracker: React.FC = () => {
                     Sentiment Score
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Events
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -293,6 +304,9 @@ const PortfolioTracker: React.FC = () => {
                       ) : (
                         <span className="text-gray-400">{item.quantity > 0 ? 'Loading...' : '-'}</span>
                       )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {item.quantity > 0 && <EventAlerts coin={item.coin} />}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <button
