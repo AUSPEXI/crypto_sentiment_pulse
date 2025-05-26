@@ -1,5 +1,5 @@
 [build]
-  base = "/opt/build/repo/csp_project/project"
+  base = "csp_project/project"  # Relative path from repo root
   command = "npm run build"
   commandOrigin = "config"
   environment = [
@@ -7,13 +7,14 @@
     "VITE_CRYPTOPANIC_API_TOKEN",
     "VITE_HUGGINGFACE_API_KEY",
     "VITE_OPENAI_API_KEY",
-    "VITE_SANTIMENT_API_KEY"
+    "VITE_SANTIMENT_API_KEY",
+    "COINMETRICS_API_KEY"  # Added for completeness
   ]
-  publish = "/opt/build/repo/csp_project/project/dist"
+  publish = "dist"  # Relative to base directory
   publishOrigin = "config"
 
 [functions]
-  directory = "/opt/build/repo/csp_project/project/netlify/functions"
+  directory = "netlify/functions"  # Relative to repo root
 
 [[redirects]]
   from = "/api/proxy/*"
