@@ -1,5 +1,5 @@
+// src/api.ts
 import axios from 'axios';
-import { parseStringPromise } from 'xml2js';
 import { SentimentData, OnChainData, Event } from '../types';
 
 // Log environment variables globally
@@ -88,7 +88,7 @@ const STATIC_NEWS: Event[] = [
 
 // OpenAI and NewsAPI configurations
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY || 'missing';
-const NEWSAPI_API_KEY = import.meta.env.VITE_NEWSAPI_API_KEY || 'missing';
+const NEWSAPI_API_KEY = import.meta.env.NEWSAPI_API_KEY || 'missing';
 
 // Helper to make proxied API requests
 const makeProxiedRequest = async (api: string, endpoint: string, params: any) => {
@@ -134,56 +134,19 @@ const fetchRecentNews = async (coin: string): Promise<string> => {
   }
 };
 
-// Fetch social sentiment from Reddit r/cryptocurrency with eight-shot prompting
+// Fetch social sentiment from Reddit r/cryptocurrency with eight-shot prompting (temporary workaround)
 const fetchSocialSentiment = async (coin: string): Promise<number> => {
   console.log('Fetching sentiment for', coin, 'via proxy');
   try {
     const params = {};
-    const data = await makeProxiedRequest('reddit', 'r/CryptoCurrency.rss', params); // Explicit endpoint
-    const xmlData = await parseStringPromise(data);
-    const items = xmlData.feed.entry || [];
+    const data = await makeProxiedRequest('reddit', 'r/CryptoCurrency.rss', params);
+    console.log(`Reddit raw response for ${coin}:`, data);
 
-    const coinRegex = new RegExp(`\\b${coin}\\b`, 'i');
-    const relevantPosts = items
-      .filter((item: any) => coinRegex.test(item.title?.[0] || ''))
-      .slice(0, 5)
-      .map((item: any) => item.title?.[0] || '');
-
-    if (relevantPosts.length === 0) {
-      return 0;
-    }
-
-    if (OPENAI_API_KEY === 'missing') throw new Error('OpenAI API key missing');
-
-    const fewShotExamples = [
-      "Instruction: Analyze sentiment of 'BTC price up 5% today!'\n### Answer: 7",
-      "Instruction: Analyze sentiment of 'ETH crash incoming'\n### Answer: -6",
-      "Instruction: Analyze sentiment of 'SOL network stable'\n### Answer: 4",
-      "Instruction: Analyze sentiment of 'XRP lawsuit news'\n### Answer: -3",
-      "Instruction: Analyze sentiment of 'ADA great project'\n### Answer: 6",
-      "Instruction: Analyze sentiment of 'DOGE to the moon'\n### Answer: 8",
-      "Instruction: Analyze sentiment of 'SHIB scam alert'\n### Answer: -8",
-      "Instruction: Analyze sentiment of 'LTC steady gains'\n### Answer: 5"
-    ].join('\n\n');
-
-    const prompt = `${fewShotExamples}\n\nInstruction: Analyze the sentiment of the following Reddit post titles about ${coin} and provide a score between -10 (very negative) and 10 (very positive):\n\n${relevantPosts.join('\n')}\n### Answer:`;
-
-    const sentimentResponse = await axios.post(
-      'https://api.openai.com/v1/chat/completions',
-      {
-        model: 'gpt-3.5-turbo',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 60,
-        temperature: 0.5,
-      },
-      { headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' } }
-    );
-
-    const sentimentText = sentimentResponse.data.choices[0].message.content.trim();
-    const socialScore = parseFloat(sentimentText) || 0;
-    return Math.min(Math.max(socialScore, -10), 10);
+    // Temporarily skip parsing due to xml2js compatibility issue
+    console.log(`Skipping Reddit parsing for ${coin} due to xml2js compatibility issue`);
+    return 0; // Default sentiment score until fast-xml-parser is installed
   } catch (error) {
-    console.error(`Error fetching social sentiment for ${coin} from Reddit:`, error.response?.data || error.message || error);
+    console.error(`Error fetching social sentiment for ${coin} from Reddit:`, error.message, error.stack);
     return 0;
   }
 };
@@ -233,16 +196,25 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
   if (!coinInfo) throw new Error(`Unsupported coin: ${coin}`);
 
   try {
-    const params = {
-      assets: coinInfo.coinMetrics,
-    };
-    const data = await makeProxiedRequest('coinmetrics', 'catalog/assets', params); // Test with a catalog endpoint
+    const params = {};
+    console.log(`CoinMetrics request params:`, params);
+    const data = await makeProxiedRequest('coinmetrics', 'catalog/assets', params);
+    console.log(`CoinMetrics raw response for ${coin}:`, data);
 
-    console.log(`CoinMetrics response for ${coin}:`, data ? 'Success' : 'Empty');
-    // For testing, return static-like data
-    return { coin, activeWallets: 100000, activeWalletsGrowth: 1.0, largeTransactions: 500, timestamp: new Date().toISOString() };
+    // Filter for the specific coin
+    const assetData = data.data?.find((d: any) => d.asset === coinInfo.coinMetrics);
+    if (assetData) {
+      return {
+        coin,
+        activeWallets: parseInt(assetData.active_addresses || 100000),
+        activeWalletsGrowth: parseFloat(assetData.active_addresses_growth || 1.0),
+        largeTransactions: parseInt(assetData.transaction_count || 500),
+        timestamp: new Date().toISOString(),
+      };
+    }
+    throw new Error('No data found for asset');
   } catch (error) {
-    console.error(`Error fetching on-chain data for ${coin} via CoinMetrics:`, error.message);
+    console.error(`Error fetching on-chain data for ${coin} via CoinMetrics:`, error.message, error.response?.data);
     const staticData = STATIC_WALLET_DATA[coin] || { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: new Date().toISOString() };
     return staticData;
   }
