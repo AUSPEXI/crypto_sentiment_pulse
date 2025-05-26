@@ -3,7 +3,6 @@
   publish = "dist"
   functions = "netlify/functions"
 
-# Ensure proxy function requests are routed correctly
 [[redirects]]
   from = "/api/proxy/*"
   to = "/.netlify/functions/proxy/:splat"
