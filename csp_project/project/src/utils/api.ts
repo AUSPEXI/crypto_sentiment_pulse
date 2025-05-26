@@ -69,6 +69,9 @@ export interface Event {
   publishedAt: string;
 }
 
+// Cache for sentiment data to prevent duplicate calls
+const sentimentCache: { [coin: string]: SentimentData } = {};
+
 // Helper function for proxied requests
 const makeProxiedRequest = async (api: string, endpoint: string, params: any, method: 'GET' | 'POST' = 'GET') => {
   const proxyUrl = '/api/proxy';
@@ -108,18 +111,23 @@ export const fetchEvents = async (coin: string = 'BTC'): Promise<Event[]> => {
   console.log('Fetching events for', coin, 'via proxy');
   const params = { q: coin, language: 'en', pageSize: 5 };
   try {
-    const data = await makeProxiedRequest('newsapi', 'everything', params); // Changed to 'everything'
-    console.log('Raw events data for', coin, ':', data); // Debug full response
+    const data = await makeProxiedRequest('newsapi', 'everything', params);
+    console.log('Raw events data for', coin, ':', data);
+    console.log('Articles for', coin, ':', data.articles); // Debug articles array
     if (!data.articles || !Array.isArray(data.articles) || data.articles.length === 0) {
       console.warn('No articles found for', coin, ', falling back to STATIC_NEWS');
       return STATIC_NEWS[coin] || [];
     }
-    return data.articles.map((article: any) => ({
-      title: article.title,
-      description: article.description || '',
-      url: article.url,
-      publishedAt: article.publishedAt,
-    }));
+    const events = data.articles
+      .map((article: any) => ({
+        title: article.title || 'No title',
+        description: article.description || 'No description',
+        url: article.url || '',
+        publishedAt: article.publishedAt || new Date().toISOString(),
+      }))
+      .filter((event: Event) => event.title && event.publishedAt); // Filter out invalid events
+    console.log('Mapped events for', coin, ':', events);
+    return events.length > 0 ? events : STATIC_NEWS[coin] || [];
   } catch (error) {
     console.error(`Error fetching events for ${coin}:`, error.message);
     return STATIC_NEWS[coin] || [];
@@ -150,7 +158,7 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
       const activeWallets = parseInt(assetData.PriceUSD ? 100000 : 0);
       const activeWalletsGrowth = parseFloat(assetData.CapMrktCurUSD ? 1.0 : 0);
       const largeTransactions = parseInt(assetData.CapMrktCurUSD ? 500 : 0);
-      console.log(`On-chain data for ${coin}:`, { activeWallets, activeWalletsGrowth, largeTransactions }); // Debug log
+      console.log(`On-chain data for ${coin}:`, { activeWallets, activeWalletsGrowth, largeTransactions });
       return {
         coin,
         activeWallets,
@@ -180,11 +188,11 @@ const fetchSocialSentiment = async (coin: string): Promise<number> => {
     console.log(`Parsed XML data for ${coin}:`, xmlData);
 
     const items = xmlData.feed?.entry || [];
-    const coinRegex = new RegExp(`\\b(${coin}|${coin.toLowerCase()})\\b`, 'i'); // Match whole words
+    const coinRegex = new RegExp(`\\b(${coin}|${coin.toLowerCase()})\\b`, 'i');
     const relevantPosts = items
       .filter((item: any) => {
         const title = item.title?.['#text'] || '';
-        const content = item.content?.['#text'] || ''; // Check content body
+        const content = item.content?.['#text'] || '';
         const match = coinRegex.test(title) || coinRegex.test(content);
         if (match) console.log(`Matched post for ${coin}:`, { title, content });
         return match;
@@ -194,7 +202,7 @@ const fetchSocialSentiment = async (coin: string): Promise<number> => {
         const title = item.title?.['#text'] || '';
         const content = item.content?.['#text'] || '';
         console.log(`Matched title/content for ${coin}:`, { title, content });
-        return title + (content ? ` ${content.substring(0, 100)}...` : ''); // Include content snippet
+        return title + (content ? ` ${content.substring(0, 100)}...` : '');
       });
 
     if (relevantPosts.length === 0) {
@@ -236,6 +244,11 @@ const fetchSocialSentiment = async (coin: string): Promise<number> => {
 // Fetch sentiment data
 export const fetchSentimentData = async (coin: string): Promise<SentimentData> => {
   console.log('Fetching sentiment data for', coin);
+  if (sentimentCache[coin]) {
+    console.log(`Returning cached sentiment data for ${coin}:`, sentimentCache[coin]);
+    return sentimentCache[coin];
+  }
+
   const coinInfo = SUPPORTED_COINS[coin];
   if (!coinInfo) throw new Error(`Unsupported coin: ${coin}`);
 
@@ -263,12 +276,16 @@ export const fetchSentimentData = async (coin: string): Promise<SentimentData> =
     const sentimentScore = (0.5 * newsScore) + (0.2 * normalizedWalletGrowth * 10) + (0.2 * normalizedLargeTransactions * 10) + (0.1 * socialScore);
     const finalScore = Math.min(Math.max(sentimentScore, -10), 10);
 
+    const sentimentData: SentimentData = { coin, score: finalScore, socialScore, timestamp: new Date().toISOString() };
+    sentimentCache[coin] = sentimentData;
     console.log(`Sentiment for ${coin}: News=${newsScore}, WalletGrowth=${normalizedWalletGrowth * 10}, LargeTx=${normalizedLargeTransactions * 10}, Social=${socialScore}, Total=${finalScore}`);
-    return { coin, score: finalScore, socialScore, timestamp: new Date().toISOString() };
+    return sentimentData;
   } catch (error) {
     console.error(`Error fetching sentiment for ${coin}, falling back to static data:`, error.response?.data || error.message || error);
     const staticScore = STATIC_PRICE_CHANGES[coin] || 0;
+    const sentimentData: SentimentData = { coin, score: staticScore, socialScore: 0, timestamp: new Date().toISOString() };
+    sentimentCache[coin] = sentimentData;
     console.log(`Sentiment fallback for ${coin}: Static=${staticScore}`);
-    return { coin, score: staticScore, socialScore: 0, timestamp: new Date().toISOString() };
+    return sentimentData;
   }
 };
