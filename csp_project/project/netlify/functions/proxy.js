@@ -46,13 +46,14 @@ exports.handler = async (event) => {
       console.log('Reddit request:', { url, params });
     } else if (api === 'openai') {
       url = `https://api.openai.com/v1/${endpoint}`;
-      console.log('OpenAI request:', { url, body: params });
+      const authHeader = `Bearer ${process.env.OPENAI_API_KEY || 'missing'}`;
+      console.log('OpenAI request:', { url, body: params, authHeader: authHeader.substring(0, 15) + '...' }); // Log partial auth header for debugging
       const response = await axios.post(
         url,
         params,
         {
           headers: {
-            'Authorization': `Bearer ${process.env.OPENAI_API_KEY || 'missing'}`,
+            'Authorization': authHeader,
             'Content-Type': 'application/json',
           },
           timeout: 10000,
