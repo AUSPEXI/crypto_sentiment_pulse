@@ -4,10 +4,10 @@ import { XMLParser } from 'fast-xml-parser';
 
 // Define supported coins
 const SUPPORTED_COINS = {
-  BTC: { symbol: 'BTC', coinMetrics: 'bitcoin' },
-  ETH: { symbol: 'ETH', coinMetrics: 'ethereum' },
-  USDT: { symbol: 'USDT', coinMetrics: 'tether' },
-  SOL: { symbol: 'SOL', coinMetrics: 'solana' },
+  BTC: { symbol: 'BTC', coinMetrics: 'btc' },
+  ETH: { symbol: 'ETH', coinMetrics: 'eth' },
+  USDT: { symbol: 'USDT', coinMetrics: 'usdt' },
+  SOL: { symbol: 'SOL', coinMetrics: 'sol' },
 };
 
 // Export STATIC_COINS for use in PortfolioTracker.tsx
@@ -61,9 +61,8 @@ const makeProxiedRequest = async (api: string, endpoint: string, params: any, me
       url: proxyUrl,
       timeout: 10000,
     };
-    // For POST requests, send params in the body; for GET, use query params
     if (method === 'POST') {
-      config.data = { api, endpoint, params }; // Send params in body
+      config.data = { api, endpoint, params };
     } else {
       config.params = { api, endpoint, params: JSON.stringify(params) };
     }
@@ -82,12 +81,11 @@ const fetchRecentNews = async (coin: string): Promise<string> => {
   const params = { q: coin, language: 'en', sortBy: 'publishedAt' };
   const data = await makeProxiedRequest('newsapi', 'everything', params);
   const newsText = data.articles.map((article: any) => article.title + ' ' + article.description).join(' ');
-  // Truncate to avoid overly long prompts
   return newsText.length > 1000 ? newsText.substring(0, 1000) + '...' : newsText;
 };
 
 // Fetch events
-export const fetchEvents = async (coin: string): Promise<Event[]> => {
+export const fetchEvents = async (coin: string = 'BTC'): Promise<Event[]> => {
   console.log('Fetching events for', coin, 'via proxy');
   const params = { q: coin, language: 'en', pageSize: 5 };
   try {
@@ -111,12 +109,11 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
   if (!coinInfo) throw new Error(`Unsupported coin: ${coin}`);
 
   try {
-    // Use historical dates (last 7 days up to today)
-    const endDate = new Date().toISOString().split('T')[0]; // e.g., '2025-05-26'
-    const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 7 days ago
+    const endDate = new Date().toISOString().split('T')[0];
+    const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const params = {
-      assets: coinInfo.coinMetrics,
-      metrics: 'AdrActCnt,TxCnt', // Updated metrics to match CoinMetrics API
+      asset_id: coinInfo.coinMetrics,
+      metrics: 'AdrActCnt,TxCnt',
       start_time: startDate,
       end_time: endDate,
     };
@@ -155,11 +152,15 @@ const fetchSocialSentiment = async (coin: string): Promise<number> => {
     console.log(`Parsed XML data for ${coin}:`, xmlData);
 
     const items = xmlData.feed?.entry || [];
-    const coinRegex = new RegExp(`\\b${coin}\\b`, 'i');
+    const coinRegex = new RegExp(`${coin}`, 'i');
     const relevantPosts = items
       .filter((item: any) => coinRegex.test(item.title?.['#text'] || ''))
       .slice(0, 5)
-      .map((item: any) => item.title?.['#text'] || '');
+      .map((item: any) => {
+        const title = item.title?.['#text'] || '';
+        console.log(`Matched title for ${coin}:`, title);
+        return title;
+      });
 
     if (relevantPosts.length === 0) {
       console.log(`No relevant Reddit posts found for ${coin}`);
