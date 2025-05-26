@@ -40,8 +40,27 @@ exports.handler = async (event) => {
       url = `https://community-api.coinmetrics.io/v4/${endpoint}`;
       console.log('CoinMetrics request:', { url, params: parsedParams });
     } else if (api === 'reddit') {
-      url = `https://www.reddit.com/r/CryptoCurrency.rss`; // Fixed URL
+      url = `https://www.reddit.com/r/CryptoCurrency.rss`;
       console.log('Reddit request:', { url, params: parsedParams });
+    } else if (api === 'openai') {
+      url = `https://api.openai.com/v1/${endpoint}`;
+      console.log('OpenAI request:', { url, body: parsedParams });
+      const response = await axios.post(
+        url,
+        parsedParams, // Body for POST request
+        {
+          headers: {
+            'Authorization': `Bearer ${process.env.OPENAI_API_KEY || 'missing'}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 10000,
+        }
+      );
+      return {
+        statusCode: 200,
+        headers: corsHeaders,
+        body: JSON.stringify(response.data),
+      };
     } else {
       return {
         statusCode: 400,
@@ -54,7 +73,7 @@ exports.handler = async (event) => {
       params: parsedParams,
       headers: { 'Accept': 'application/json' },
       timeout: 10000,
-      maxRedirects: 5, // Handle potential redirects
+      maxRedirects: 5,
     });
 
     return {
