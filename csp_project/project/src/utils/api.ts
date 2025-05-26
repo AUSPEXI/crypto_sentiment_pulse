@@ -108,7 +108,12 @@ export const fetchEvents = async (coin: string = 'BTC'): Promise<Event[]> => {
   console.log('Fetching events for', coin, 'via proxy');
   const params = { q: coin, language: 'en', pageSize: 5 };
   try {
-    const data = await makeProxiedRequest('newsapi', 'top-headlines', params);
+    const data = await makeProxiedRequest('newsapi', 'everything', params); // Changed to 'everything'
+    console.log('Raw events data for', coin, ':', data); // Debug full response
+    if (!data.articles || !Array.isArray(data.articles) || data.articles.length === 0) {
+      console.warn('No articles found for', coin, ', falling back to STATIC_NEWS');
+      return STATIC_NEWS[coin] || [];
+    }
     return data.articles.map((article: any) => ({
       title: article.title,
       description: article.description || '',
