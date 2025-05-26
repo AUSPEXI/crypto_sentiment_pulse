@@ -1,11 +1,40 @@
+
+#### `src/components/PortfolioTracker.tsx` (Updated)
+Add error boundaries and optimize fetching to prevent crashes.
+
+```typescript
 // src/components/PortfolioTracker.tsx
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { fetchSentimentData, STATIC_COINS } from '../utils/api';
 import { PortfolioItem } from '../types';
 import { Trash2 } from 'lucide-react';
-import EventAlerts from './EventAlerts'; // Import EventAlerts
+import EventAlerts from './EventAlerts';
+import OnChainInsights from './OnChainInsights';
 
 const DEFAULT_COINS = STATIC_COINS.map(coin => coin.symbol);
+
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, { hasError: boolean }> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('ErrorBoundary caught an error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <p className="text-red-500">Something went wrong while rendering this component.</p>;
+    }
+    return this.props.children;
+  }
+}
 
 const PortfolioTracker: React.FC = () => {
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
@@ -16,7 +45,6 @@ const PortfolioTracker: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showConsentPopup, setShowConsentPopup] = useState<boolean>(false);
 
-  // Load initial portfolio and consent from localStorage
   useEffect(() => {
     const savedPortfolio = localStorage.getItem('portfolio');
     if (savedPortfolio) {
@@ -38,17 +66,14 @@ const PortfolioTracker: React.FC = () => {
     }
   }, []);
 
-  // Sync portfolio to localStorage
   useEffect(() => {
     localStorage.setItem('portfolio', JSON.stringify(portfolio));
   }, [portfolio]);
 
-  // Sync dataConsent to localStorage
   useEffect(() => {
     localStorage.setItem('dataConsent', JSON.stringify(dataConsent));
   }, [dataConsent]);
 
-  // Memoized updateSentimentScores to prevent unnecessary re-runs
   const updateSentimentScores = useCallback(async () => {
     if (portfolio.length === 0) return;
 
@@ -57,20 +82,16 @@ const PortfolioTracker: React.FC = () => {
 
     try {
       const updatedPortfolio = [...portfolio];
-
-      for (let i = 0; i < updatedPortfolio.length; i++) {
-        const item = updatedPortfolio[i];
-        if (item.quantity === 0 || item.sentimentScore !== undefined) continue; // Skip if zero quantity or already fetched
+      const promises = updatedPortfolio.map(async (item, idx) => {
+        if (item.quantity === 0 || item.sentimentScore !== undefined) return item;
         const sentimentData = await fetchSentimentData(item.coin);
-        updatedPortfolio[i] = {
-          ...item,
-          sentimentScore: sentimentData.score,
-        };
-      }
+        return { ...item, sentimentScore: sentimentData.score };
+      });
 
+      const results = await Promise.all(promises);
       setPortfolio(prev => {
-        const shouldUpdate = prev.some((item, idx) => item.sentimentScore !== updatedPortfolio[idx].sentimentScore);
-        return shouldUpdate ? updatedPortfolio : prev; // Only update if scores differ
+        const shouldUpdate = prev.some((item, idx) => item.sentimentScore !== results[idx].sentimentScore);
+        return shouldUpdate ? results : prev;
       });
     } catch (err) {
       setError('Failed to update sentiment scores. Please try again later.');
@@ -78,12 +99,11 @@ const PortfolioTracker: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [portfolio.length]); // Dependency on length to trigger on initial load or size change
+  }, [portfolio.length]);
 
-  // Initial call and interval
   useEffect(() => {
     updateSentimentScores();
-    const intervalId = setInterval(updateSentimentScores, 60 * 60 * 1000); // Update hourly
+    const intervalId = setInterval(updateSentimentScores, 60 * 60 * 1000);
     return () => clearInterval(intervalId);
   }, [updateSentimentScores]);
 
@@ -140,6 +160,7 @@ const PortfolioTracker: React.FC = () => {
   };
 
   const portfolioSentiment = calculatePortfolioSentiment();
+  const activeCoins = portfolio.filter(item => item.quantity > 0).map(item => item.coin);
 
   return (
     <div className="bg-white rounded-lg shadow-md p-4 border-2 border-indigo-200">
@@ -320,6 +341,12 @@ const PortfolioTracker: React.FC = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          <div className="mt-6">
+            <ErrorBoundary>
+              <OnChainInsights selectedCoins={activeCoins} />
+            </ErrorBoundary>
           </div>
         </div>
       )}
