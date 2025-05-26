@@ -40,7 +40,7 @@ exports.handler = async (event) => {
       url = `https://community-api.coinmetrics.io/v4/${endpoint}`;
       console.log('CoinMetrics request:', { url, params: parsedParams });
     } else if (api === 'reddit') {
-      url = `https://www.reddit.com/r/cryptocurrency/.rss`;
+      url = `https://www.reddit.com/r/CryptoCurrency.rss`; // Fixed URL
       console.log('Reddit request:', { url, params: parsedParams });
     } else {
       return {
@@ -54,6 +54,7 @@ exports.handler = async (event) => {
       params: parsedParams,
       headers: { 'Accept': 'application/json' },
       timeout: 10000,
+      maxRedirects: 5, // Handle potential redirects
     });
 
     return {
