@@ -9,40 +9,24 @@ interface EventAlertsProps {
 const EventAlerts: React.FC<EventAlertsProps> = ({ coin }) => {
   const [events, setEvents] = useState<Event[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    let isMounted = true;
-
     const loadEvents = async () => {
-      setIsLoading(true);
       try {
         const fetchedEvents = await fetchEvents(coin);
-        if (isMounted) {
-          setEvents(fetchedEvents.length > 0 ? fetchedEvents : STATIC_NEWS[coin] || []);
-        }
+        setEvents(fetchedEvents.length > 0 ? fetchedEvents : STATIC_NEWS[coin] || []);
       } catch (err) {
         console.error('Error in EventAlerts:', err);
-        if (isMounted) {
-          setError('Failed to load events');
-          setEvents(STATIC_NEWS[coin] || []);
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        setError('Failed to load events');
+        setEvents(STATIC_NEWS[coin] || []);
       }
     };
-
     loadEvents();
+  }, [coin]);
 
-    return () => {
-      isMounted = false; // Cleanup to prevent state updates on unmounted component
-    };
-  }, [coin]); // Dependency on coin to re-fetch only when coin changes
-
-  if (isLoading) return <div>Loading events...</div>;
-  if (error) return <div>Error: {error}</div>;
+  if (error) {
+    return <div>Error: {error}</div>;
+  }
 
   return (
     <div>
