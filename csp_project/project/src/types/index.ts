@@ -1,4 +1,3 @@
-// src/types/index.ts
 export interface Coin {
   id: string;
   symbol: string;
