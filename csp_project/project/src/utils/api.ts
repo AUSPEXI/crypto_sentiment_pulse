@@ -304,4 +304,109 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
         timestamp: new Date().toISOString(),
       };
     }
-    throw
+    throw new Error('No data found for asset'); // Fixed incomplete throw statement
+  } catch (error) {
+    console.error(`Error fetching on-chain data for ${coin} via CoinMetrics:`, error.message, 'Response:', error.response?.data);
+    const staticData = STATIC_WALLET_DATA[coin] || { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: new Date().toISOString() };
+    return staticData;
+  }
+};
+
+const parser = new XMLParser({ ignoreAttributes: false, parseAttributeValue: true });
+
+const fetchSocialSentiment = async (coin: string): Promise<number> => {
+  console.log('Fetching sentiment for', coin, 'via proxy');
+  try {
+    const params = {};
+    const data = await makeProxiedRequest('reddit', 'r/CryptoCurrency.rss', params);
+    console.log(`Reddit raw response for ${coin}:`, data);
+    const xmlData = parser.parse(data);
+    console.log(`Parsed XML data for ${coin}:`, xmlData);
+
+    const items = xmlData.feed?.entry || [];
+    const coinRegex = new RegExp(`${coin}`, 'i');
+    const relevantPosts = items
+      .filter((item: any) => coinRegex.test(item.title?.['#text'] || ''))
+      .slice(0, 5)
+      .map((item: any) => {
+        const title = item.title?.['#text'] || '';
+        console.log(`Matched title for ${coin}:`, title);
+        return title;
+      });
+
+    if (relevantPosts.length === 0) {
+      console.log(`No relevant Reddit posts found for ${coin}`);
+      return 0;
+    }
+
+    const fewShotExamples = [
+      "Instruction: Analyze sentiment of 'BTC price up 5% today!'\n### Answer: 7",
+      "Instruction: Analyze sentiment of 'ETH crash incoming'\n### Answer: -6",
+      "Instruction: Analyze sentiment of 'SOL network stable'\n### Answer: 4",
+      "Instruction: Analyze sentiment of 'XRP lawsuit news'\n### Answer: -3",
+      "Instruction: Analyze sentiment of 'ADA great project'\n### Answer: 6",
+      "Instruction: Analyze sentiment of 'DOGE to the moon'\n### Answer: 8",
+      "Instruction: Analyze sentiment of 'SHIB scam alert'\n### Answer: -8",
+      "Instruction: Analyze sentiment of 'LTC steady gains'\n### Answer: 5",
+    ].join('\n\n');
+
+    const prompt = `${fewShotExamples}\n\nInstruction: Analyze the sentiment of the following Reddit post titles about ${coin} and provide a score between -10 (very negative) and 10 (very positive):\n\n${relevantPosts.join('\n')}\n### Answer:`;
+
+    const openAiParams = {
+      model: 'gpt-3.5-turbo',
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 60,
+      temperature: 0.5,
+    };
+    const sentimentResponse = await makeProxiedRequest('openai', 'chat/completions', openAiParams, 'POST');
+
+    const sentimentText = sentimentResponse.choices[0].message.content.trim();
+    const socialScore = parseFloat(sentimentText) || 0;
+    console.log(`Reddit sentiment score for ${coin}: ${socialScore}`);
+    return Math.min(Math.max(socialScore, -10), 10);
+  } catch (error) {
+    console.error(`Error fetching social sentiment for ${coin} from Reddit:`, error.message);
+    return 0;
+  }
+};
+
+export const fetchSentimentData = async (coin: string): Promise<SentimentData> => {
+  console.log('Fetching sentiment data for', coin);
+  const coinInfo = SUPPORTED_COINS[coin];
+  if (!coinInfo) throw new Error(`Unsupported coin: ${coin}`);
+
+  let newsScore = 0;
+  let socialScore = 0;
+
+  try {
+    const newsText = await fetchRecentNews(coin);
+    const openAiParams = {
+      model: 'gpt-3.5-turbo',
+      messages: [{ role: 'user', content: `Analyze the sentiment of the following text about ${coin} and provide a score between -10 (very negative) and 10 (very positive):\n\n${newsText}` }],
+      max_tokens: 60,
+      temperature: 0.5,
+    };
+    const newsResponse = await makeProxiedRequest('openai', 'chat/completions', openAiParams, 'POST');
+    newsScore = parseFloat(newsResponse.choices[0].message.content.trim()) || 0;
+    console.log(`News sentiment score for ${coin}: ${newsScore} (API: ${newsText.length > 0 ? 'Yes' : 'No'})`);
+
+    const onChainData = await fetchOnChainData(coin);
+    const normalizedWalletGrowth = Math.min(Math.max(onChainData.activeWalletsGrowth / 10, -1), 1);
+    const normalizedLargeTransactions = Math.min(onChainData.largeTransactions / 5000, 1);
+    console.log(`On-chain contribution for ${coin}: Growth=${normalizedWalletGrowth * 10}, LargeTx=${normalizedLargeTransactions * 10} (API: ${onChainData.activeWallets > 0 ? 'Yes' : 'No'})`);
+
+    socialScore = await fetchSocialSentiment(coin);
+    console.log(`Social sentiment score for ${coin}: ${socialScore} (API: ${socialScore !== 0 ? 'Yes' : 'No'})`);
+
+    const sentimentScore = (0.5 * newsScore) + (0.2 * normalizedWalletGrowth * 10) + (0.2 * normalizedLargeTransactions * 10) + (0.1 * socialScore);
+    const finalScore = Math.min(Math.max(sentimentScore, -10), 10);
+
+    console.log(`Sentiment for ${coin}: News=${newsScore}, WalletGrowth=${normalizedWalletGrowth * 10}, LargeTx=${normalizedLargeTransactions * 10}, Social=${socialScore}, Total=${finalScore}`);
+    return { coin, score: finalScore, socialScore, timestamp: new Date().toISOString() };
+  } catch (error) {
+    console.error(`Error fetching sentiment for ${coin}, falling back to static data:`, error.message);
+    const staticScore = STATIC_PRICE_CHANGES[coin] || 0;
+    console.log(`Sentiment fallback for ${coin}: Static=${staticScore}`);
+    return { coin, score: staticScore, socialScore: 0, timestamp: new Date().toISOString() };
+  }
+};
