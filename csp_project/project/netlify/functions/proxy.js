@@ -2,52 +2,53 @@
 const axios = require('axios');
 
 exports.handler = async (event) => {
-  console.log('Proxy invoked with query:', event.queryStringParameters);
+  console.log('Proxy invoked with query:', event.queryStringParameters, 'body:', event.body);
 
-  const { api, endpoint, params: paramsString } = event.queryStringParameters;
-
-  if (!api || !endpoint) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: 'Missing api or endpoint parameter' }),
-    };
-  }
-
-  let url;
+  let api, endpoint, params;
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type,Authorization',
   };
 
-  let parsedParams;
-  try {
-    parsedParams = paramsString ? JSON.parse(paramsString) : {};
-  } catch (error) {
+  if (event.httpMethod === 'POST' && event.body) {
+    const body = JSON.parse(event.body);
+    api = body.api;
+    endpoint = body.endpoint;
+    params = body.params;
+  } else {
+    const queryParams = event.queryStringParameters || {};
+    api = queryParams.api;
+    endpoint = queryParams.endpoint;
+    params = queryParams.params ? JSON.parse(queryParams.params) : {};
+  }
+
+  if (!api || !endpoint) {
     return {
       statusCode: 400,
       headers: corsHeaders,
-      body: JSON.stringify({ error: 'Invalid params format', details: error.message }),
+      body: JSON.stringify({ error: 'Missing api or endpoint parameter' }),
     };
   }
 
+  let url;
   try {
     if (api === 'newsapi') {
       url = `https://newsapi.org/v2/${endpoint}`;
-      parsedParams.apiKey = process.env.NEWSAPI_API_KEY || 'missing';
-      console.log('NewsAPI request:', { url, params: parsedParams });
+      params.apiKey = process.env.NEWSAPI_API_KEY || 'missing';
+      console.log('NewsAPI request:', { url, params });
     } else if (api === 'coinmetrics') {
       url = `https://community-api.coinmetrics.io/v4/${endpoint}`;
-      console.log('CoinMetrics request:', { url, params: parsedParams });
+      console.log('CoinMetrics request:', { url, params });
     } else if (api === 'reddit') {
       url = `https://www.reddit.com/r/CryptoCurrency.rss`;
-      console.log('Reddit request:', { url, params: parsedParams });
+      console.log('Reddit request:', { url, params });
     } else if (api === 'openai') {
       url = `https://api.openai.com/v1/${endpoint}`;
-      console.log('OpenAI request:', { url, body: parsedParams });
+      console.log('OpenAI request:', { url, body: params });
       const response = await axios.post(
         url,
-        parsedParams, // Body for POST request
+        params,
         {
           headers: {
             'Authorization': `Bearer ${process.env.OPENAI_API_KEY || 'missing'}`,
@@ -70,7 +71,7 @@ exports.handler = async (event) => {
     }
 
     const response = await axios.get(url, {
-      params: parsedParams,
+      params,
       headers: { 'Accept': 'application/json' },
       timeout: 10000,
       maxRedirects: 5,
