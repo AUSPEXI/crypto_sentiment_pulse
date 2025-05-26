@@ -138,7 +138,8 @@ const fetchRecentNews = async (coin: string): Promise<string> => {
 const fetchSocialSentiment = async (coin: string): Promise<number> => {
   console.log('Fetching sentiment for', coin, 'via proxy');
   try {
-    const data = await makeProxiedRequest('reddit', '', {});
+    const params = {};
+    const data = await makeProxiedRequest('reddit', 'r/CryptoCurrency.rss', params); // Explicit endpoint
     const xmlData = await parseStringPromise(data);
     const items = xmlData.feed.entry || [];
 
