@@ -7,7 +7,7 @@ export const STATIC_COINS = [
   { symbol: 'USDT', name: 'Tether' },
 ];
 
-const PROXY_URL = '/.netlify/functions/proxy'; // Proxy endpoint for Netlify functions
+const PROXY_URL = '/.netlify/functions/proxy';
 
 const sentimentCache: Record<string, { score: number; timestamp: number }> = {};
 
@@ -52,7 +52,6 @@ export const fetchSentimentData = async (coin: string): Promise<SentimentData> =
 
   console.log(`Fetching sentiment data for ${coin}`);
 
-  // Fetch news
   console.log(`Fetching news for ${coin} via proxy`);
   const newsParams = { q: coin, language: 'en', pageSize: 5 };
   const newsResponse = await fetchWithProxy('newsapi/everything', newsParams);
@@ -60,7 +59,6 @@ export const fetchSentimentData = async (coin: string): Promise<SentimentData> =
   const newsText = newsResponse.articles.map((article: any) => article.title + ' ' + article.description).join(' ');
   console.log(`News text for ${coin}:`, newsText);
 
-  // Fetch events
   console.log(`Fetching events for ${coin} via proxy`);
   const eventsResponse = await fetchWithProxy('newsapi/everything', newsParams);
   console.log(`Making proxied request to newsapi/everything with params:`, newsParams);
@@ -81,7 +79,6 @@ export const fetchSentimentData = async (coin: string): Promise<SentimentData> =
   }));
   console.log(`Mapped events for ${coin}:`, mappedEvents);
 
-  // Fetch on-chain data
   console.log(`Fetching on-chain data for ${coin}`);
   const coinMetricsParams = { assets: coin, metrics: 'AdrActCnt,AdrActCntChg24h,NVt10Day' };
   console.log(`CoinMetrics request params:`, coinMetricsParams);
@@ -98,7 +95,6 @@ export const fetchSentimentData = async (coin: string): Promise<SentimentData> =
   };
   console.log(`On-chain data for ${coin}:`, onChainData);
 
-  // Fetch Reddit sentiment
   console.log(`Fetching sentiment for ${coin} via proxy`);
   const redditResponse = await fetchWithProxy(`reddit/r/CryptoCurrency.rss`, { q: coin });
   console.log(`Making proxied request to reddit/r/CryptoCurrency.rss with params:`, { q: coin });
