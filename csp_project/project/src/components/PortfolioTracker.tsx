@@ -1,7 +1,7 @@
 
-#### `src/components/PortfolioTracker.tsx` (Updated)
-Add error boundaries and optimize fetching to prevent crashes.
+---
 
+### `src/components/PortfolioTracker.tsx`
 ```typescript
 // src/components/PortfolioTracker.tsx
 import React, { useState, useEffect, useCallback } from 'react';
