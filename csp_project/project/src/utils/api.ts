@@ -232,28 +232,14 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
   if (!coinInfo) throw new Error(`Unsupported coin: ${coin}`);
 
   try {
-    const endTime = new Date().toISOString().split('T')[0];
-    const startTime = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const params = {
       assets: coinInfo.coinMetrics,
-      metrics: 'AdrActCnt,TxCnt',
-      start_time: startTime,
-      end_time: endTime,
-      frequency: '1d',
     };
-    const data = await makeProxiedRequest('coinmetrics', 'timeseries/asset-metrics', params);
+    const data = await makeProxiedRequest('coinmetrics', 'catalog/assets', params); // Test with a catalog endpoint
 
     console.log(`CoinMetrics response for ${coin}:`, data ? 'Success' : 'Empty');
-    if (!data.data || data.data.length < 2) throw new Error('Insufficient data from CoinMetrics');
-
-    const latest = data.data[data.data.length - 1];
-    const activeWallets = parseInt(latest.AdrActCnt, 10) || 0;
-    const previous = data.data[0];
-    const previousWallets = parseInt(previous.AdrActCnt, 10) || 0;
-    const activeWalletsGrowth = previousWallets > 0 ? ((activeWallets - previousWallets) / previousWallets) * 100 : 0;
-    const largeTransactions = parseInt(latest.TxCnt, 10) || 0;
-
-    return { coin, activeWallets, activeWalletsGrowth, largeTransactions, timestamp: new Date().toISOString() };
+    // For testing, return static-like data
+    return { coin, activeWallets: 100000, activeWalletsGrowth: 1.0, largeTransactions: 500, timestamp: new Date().toISOString() };
   } catch (error) {
     console.error(`Error fetching on-chain data for ${coin} via CoinMetrics:`, error.message);
     const staticData = STATIC_WALLET_DATA[coin] || { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: new Date().toISOString() };
