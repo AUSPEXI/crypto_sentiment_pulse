@@ -1,4 +1,3 @@
-// .netlify/functions/proxy.js
 const axios = require('axios');
 
 exports.handler = async (event) => {
@@ -47,7 +46,7 @@ exports.handler = async (event) => {
     } else if (api === 'openai') {
       url = `https://api.openai.com/v1/${endpoint}`;
       const authHeader = `Bearer ${process.env.OPENAI_API_KEY || 'missing'}`;
-      console.log('OpenAI request:', { url, body: params, authHeader: authHeader.substring(0, 15) + '...' }); // Log partial auth header for debugging
+      console.log('OpenAI request:', { url, body: params, authHeader: authHeader.substring(0, 15) + '...' });
       const response = await axios.post(
         url,
         params,
@@ -64,6 +63,14 @@ exports.handler = async (event) => {
         headers: corsHeaders,
         body: JSON.stringify(response.data),
       };
+    } else if (api === 'cryptopanic') {
+      url = `https://cryptopanic.com/api/v1/${endpoint}`;
+      params.auth_token = process.env.CRYPTOPANIC_API_TOKEN || 'missing';
+      console.log('CryptoPanic request:', { url, params });
+    } else if (api === 'santiment') {
+      url = `https://api.santiment.net/api/v1/${endpoint}`;
+      params.api_key = process.env.SANTIMENT_API_KEY || 'missing';
+      console.log('Santiment request:', { url, params });
     } else {
       return {
         statusCode: 400,
@@ -85,7 +92,7 @@ exports.handler = async (event) => {
       body: JSON.stringify(response.data),
     };
   } catch (error) {
-    console.error('Proxy error:', error.response?.data || error.message);
+    console.error('Proxy error:', error.response?.data || error.message, 'Status:', error.response?.status);
     return {
       statusCode: error.response?.status || 500,
       headers: corsHeaders,
