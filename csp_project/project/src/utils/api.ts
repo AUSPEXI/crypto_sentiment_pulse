@@ -106,14 +106,20 @@ const makeProxiedRequest = async (
 
 const fetchCryptoPanicNews = async (coin: string, signal?: AbortSignal): Promise<Event[]> => {
   console.log('Fetching news from CryptoPanic for', coin);
+  if (!coin) {
+    console.error('CryptoPanic fetch failed: No coin provided');
+    return [];
+  }
   try {
     const params = {
       auth_token: process.env.CRYPTOPANIC_API_TOKEN || '',
-      currencies: coin,
+      currencies: coin.toUpperCase(),
       kind: 'news',
-      public: true,
+      public: 'true',
     };
+    console.log('CryptoPanic request params:', params);
     const data = await makeProxiedRequest('cryptopanic', 'v1/posts', params, 'GET', 0, signal);
+    console.log('CryptoPanic response:', data);
     const articles = data.results || [];
     return articles.map((article: any) => ({
       title: article.title,
@@ -136,7 +142,9 @@ const fetchRecentNews = async (coin: string, signal?: AbortSignal): Promise<stri
       language: 'en',
       pageSize: 3,
     };
+    console.log('NewsAPI request params:', params);
     const data = await makeProxiedRequest('newsapi', 'top-headlines', params, 'GET', 0, signal);
+    console.log('NewsAPI response:', data);
     const articles = data.articles || [];
     const titles = articles.map((article: any) => article.title).join('. ');
     if (!titles) throw new Error('No news articles found');
@@ -150,6 +158,9 @@ const fetchRecentNews = async (coin: string, signal?: AbortSignal): Promise<stri
 
 const fetchEvents = async (coin: string, signal?: AbortSignal): Promise<Event[]> => {
   console.log('Fetching events for', coin);
+  if (!coin || typeof coin !== 'string') {
+    throw new Error('Invalid coin parameter: coin must be a non-empty string');
+  }
   const coinInfo = SUPPORTED_COINS[coin];
   try {
     const params = {
@@ -181,13 +192,9 @@ export const fetchOnChainData = async (coin: string, signal?: AbortSignal): Prom
   if (!coinInfo) throw new Error(`Unsupported coin: ${coin}`);
 
   try {
-    const endDate = new Date().toISOString().split('T')[0];
-    const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const params = {
       assets: coinInfo.coinMetrics,
       metrics: 'AdrActCnt,TxCnt',
-      start: startDate,
-      end: endDate,
     };
     const data = await makeProxiedRequest('coinmetrics', 'v4/timeseries/asset-metrics', params, 'GET', 0, signal);
     const assetData = data.data?.[0];
@@ -195,7 +202,7 @@ export const fetchOnChainData = async (coin: string, signal?: AbortSignal): Prom
       const result = {
         coin,
         activeWallets: parseInt(assetData.AdrActCnt || '0'),
-        activeWalletsGrowth: parseFloat(assetData.TxCnt ? (data.data[0].TxCnt - (data.data[1]?.TxCnt || 0)) / (data.data[1]?.TxCnt || 1) * 100 : 0),
+        activeWalletsGrowth: 0,
         largeTransactions: parseInt(assetData.TxCnt ? assetData.TxCnt * 0.01 : 0),
         timestamp: new Date().toISOString(),
       };
