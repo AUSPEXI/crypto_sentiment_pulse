@@ -138,9 +138,10 @@ const fetchRecentNews = async (coin: string, signal?: AbortSignal): Promise<stri
   const coinInfo = SUPPORTED_COINS[coin];
   try {
     const params = {
-      q: `crypto ${coinInfo.name}`,
+      q: `${coinInfo.name} OR cryptocurrency`,
       language: 'en',
       pageSize: 3,
+      sortBy: 'publishedAt',
     };
     console.log('NewsAPI request params:', params);
     const data = await makeProxiedRequest('newsapi', 'top-headlines', params, 'GET', 0, signal);
@@ -191,20 +192,37 @@ export const fetchOnChainData = async (coin: string, signal?: AbortSignal): Prom
   const coinInfo = SUPPORTED_COINS[coin];
   if (!coinInfo) throw new Error(`Unsupported coin: ${coin}`);
 
+  if (coin === 'USDT') {
+    console.log(`Skipping live CoinMetrics fetch for ${coin}; using STATIC_WALLET_DATA`);
+    return STATIC_WALLET_DATA[coin] || { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: new Date().toISOString() };
+  }
+
   try {
-    const metrics = coin === 'USDT' ? 'TxCnt' : 'AdrActCnt,TxCnt';
     const params = {
       assets: coinInfo.coinMetrics,
-      metrics,
+      metrics: 'AdrActCnt,TxCnt',
+      limit: 2,
+      frequency: '1d',
     };
     const data = await makeProxiedRequest('coinmetrics', 'v4/timeseries/asset-metrics', params, 'GET', 0, signal);
-    const assetData = data.data?.[0];
-    if (assetData) {
+    const assetData = data.data || [];
+    if (assetData.length >= 1) {
+      const latest = assetData[0];
+      const previous = assetData.length > 1 ? assetData[1] : null;
+
+      const activeWallets = parseInt(latest.AdrActCnt || '0');
+      let activeWalletsGrowth = 0;
+
+      if (previous) {
+        const previousWallets = parseInt(previous.AdrActCnt || '0');
+        activeWalletsGrowth = previousWallets > 0 ? ((activeWallets - previousWallets) / previousWallets) * 100 : 0;
+      }
+
       const result = {
         coin,
-        activeWallets: parseInt(assetData.AdrActCnt || '0'),
-        activeWalletsGrowth: 0,
-        largeTransactions: parseInt(assetData.TxCnt ? assetData.TxCnt * 0.01 : 0),
+        activeWallets,
+        activeWalletsGrowth: parseFloat(activeWalletsGrowth.toFixed(2)),
+        largeTransactions: parseInt(latest.TxCnt ? latest.TxCnt * 0.01 : 0),
         timestamp: new Date().toISOString(),
       };
       console.log(`Fetched live on-chain data for ${coin}`);
@@ -244,9 +262,8 @@ const fetchSocialSentiment = async (coin: string, signal?: AbortSignal): Promise
 export const fetchSentimentData = async (coin: string, options: { signal?: AbortSignal } = {}): Promise<SentimentData> => {
   console.log('Fetching sentiment data for', coin);
 
-  // Check cache first
   const cached = sentimentCache[coin];
-  const cacheDuration = 6 * 60 * 60 * 1000; // 6 hours in ms
+  const cacheDuration = 6 * 60 * 60 * 1000;
   if (cached && Date.now() - cached.timestamp < cacheDuration) {
     console.log(`Using cached sentiment data for ${coin}`);
     return cached.data;
@@ -300,10 +317,8 @@ export const fetchSentimentData = async (coin: string, options: { signal?: Abort
     timestamp: new Date().toISOString(),
   };
 
-  // Cache the result
   sentimentCache[coin] = { data: result, timestamp: Date.now() };
   return result;
 };
 
-// Export additional functions and constants used by components
 export { fetchEvents, STATIC_NEWS, SUPPORTED_COINS };
