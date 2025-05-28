@@ -399,3 +399,6 @@ export const fetchSentimentData = async (coin: string): Promise<SentimentData> =
     return { coin, score: STATIC_PRICE_CHANGES[coin] || 0, socialScore: 0, timestamp: new Date().toISOString() };
   }
 };
+
+// Export STATIC_PRICE_CHANGES
+export { STATIC_PRICE_CHANGES };
