@@ -151,7 +151,7 @@ let lastNewsApiRequestTime: number | null = null;
 const NEWS_API_RATE_LIMIT_MS = 60 * 60 * 1000; // 1 hour
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 5000;
-const MAX_DELAY_MS = 10 * 1000; // Max 10 seconds delay for rate limit
+const MAX_DELAY_MS = 30 * 1000; // Increased to 30 seconds
 
 const makeProxiedRequest = async (api: string, endpoint: string, params: any, method: 'GET' | 'POST' = 'GET', retries = 0): Promise<any> => {
   const cacheKey = `${api}/${endpoint}/${JSON.stringify(params)}`;
@@ -240,6 +240,11 @@ const fetchRecentNews = async (coin: string): Promise<string> => {
     return newsText;
   } catch (error) {
     console.error(`News fetch failed for ${coin}:`, error.message);
+    if (error.message.includes('Rate limit delay')) {
+      console.log(`Falling back to CryptoPanic for ${coin} due to rate limit`);
+      const cryptoPanicNews = (await fetchCryptoPanicNews(coin)).map(event => event.title + ' ' + event.description).join(' ') || 'No news available.';
+      return cryptoPanicNews;
+    }
     console.log(`Falling back to STATIC_NEWS for ${coin}`);
     const staticNews = STATIC_NEWS[coin]?.map(event => event.title + ' ' + event.description).join(' ') || 'No news available.';
     return staticNews;
@@ -279,14 +284,14 @@ const fetchSantimentOnChainData = async (coin: string): Promise<OnChainData> => 
       slug: coin.toLowerCase(),
       from: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
       to: new Date().toISOString(),
-      metrics: ['active_addresses_24h', 'transaction_volume'],
+      metrics: ['daily_active_addresses', 'transaction_volume'], // Adjusted metrics for free tier
     };
-    const data = await makeProxiedRequest('santiment', 'timeseries', params);
+    const data = await makeProxiedRequest('santiment', 'get_metric', params); // Changed to get_metric
     const latest = data.data?.[data.data.length - 1] || {};
     return {
       coin,
-      activeWallets: parseInt(latest.active_addresses_24h || '0'),
-      activeWalletsGrowth: 0, // Santiment free tier may not provide historical data for growth
+      activeWallets: parseInt(latest.daily_active_addresses || '0'),
+      activeWalletsGrowth: 0, // Free tier might not provide growth
       largeTransactions: parseInt(latest.transaction_volume || '0') * 0.01,
       timestamp: new Date().toISOString(),
     };
@@ -306,18 +311,18 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
     const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const params = {
       assets: coinInfo.coinMetrics,
-      metrics: 'AdrActCnt,TxCnt', // Adjusted for community API
+      metrics: 'AdrActCnt,TxTfrCnt', // Adjusted to TxTfrCnt (transaction count) for community API
       start: startDate,
       end: endDate,
     };
-    const data = await makeProxiedRequest('coinmetrics', 'timeseries/asset-metrics', params);
+    const data = await makeProxiedRequest('coinmetrics', 'v4/timeseries/asset-metrics', params);
     const assetData = data.data?.[0];
     if (assetData) {
       const result = {
         coin,
         activeWallets: parseInt(assetData.AdrActCnt || '0'),
-        activeWalletsGrowth: parseFloat(assetData.TxCnt ? (data.data[0].TxCnt - (data.data[1]?.TxCnt || 0)) / (data.data[1]?.TxCnt || 1) * 100 : 0),
-        largeTransactions: parseInt(assetData.TxCnt ? assetData.TxCnt * 0.01 : 0),
+        activeWalletsGrowth: parseFloat(assetData.TxTfrCnt ? (data.data[0].TxTfrCnt - (data.data[1]?.TxTfrCnt || 0)) / (data.data[1]?.TxTfrCnt || 1) * 100 : 0),
+        largeTransactions: parseInt(assetData.TxTfrCnt ? assetData.TxTfrCnt * 0.01 : 0),
         timestamp: new Date().toISOString(),
       };
       console.log(`Fetched live on-chain data for ${coin}`);
@@ -400,5 +405,5 @@ export const fetchSentimentData = async (coin: string): Promise<SentimentData> =
   }
 };
 
-// Export STATIC_PRICE_CHANGES
+// Export static data
 export { STATIC_PRICE_CHANGES };
