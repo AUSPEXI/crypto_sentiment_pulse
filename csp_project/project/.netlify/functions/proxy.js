@@ -21,11 +21,13 @@ const API_BASE_URLS = {
 };
 
 exports.handler = async (event) => {
+  console.log('Received event:', JSON.stringify(event, null, 2));
   const { api, endpoint, params } = event.queryStringParameters || {};
   const body = event.httpMethod === 'POST' ? JSON.parse(event.body || '{}') : {};
   const method = event.httpMethod.toLowerCase();
 
   if (!api || !endpoint) {
+    console.error('Missing api or endpoint in request');
     return {
       statusCode: 400,
       body: JSON.stringify({ error: 'Missing api or endpoint' }),
@@ -34,6 +36,7 @@ exports.handler = async (event) => {
 
   const baseUrl = API_BASE_URLS[api];
   if (!baseUrl) {
+    console.error(`Unsupported API: ${api}`);
     return {
       statusCode: 400,
       body: JSON.stringify({ error: `Unsupported API: ${api}` }),
@@ -55,6 +58,7 @@ exports.handler = async (event) => {
     urlParams.api_key = apiKey;
   }
 
+  console.log(`Constructed URL: ${fullUrl} with params:`, urlParams);
   try {
     const config = {
       method,
@@ -65,20 +69,21 @@ exports.handler = async (event) => {
       timeout: 10000,
     };
 
-    console.log(`Proxying request to: ${fullUrl} with params:`, urlParams);
+    console.log('Sending request with config:', JSON.stringify(config, null, 2));
     const response = await axios(config);
-    console.log(`Successfully proxied request to ${fullUrl}`);
+    console.log('Received response:', JSON.stringify(response.data, null, 2));
     return {
       statusCode: 200,
       body: JSON.stringify(response.data),
     };
   } catch (error) {
-    console.error(`Proxy error for ${api}/${endpoint}:`, {
+    console.error('Proxy error:', {
       message: error.message,
       status: error.response?.status,
       data: error.response?.data,
       url: fullUrl,
       params: urlParams,
+      headers: headers,
     });
     return {
       statusCode: error.response?.status || 500,
