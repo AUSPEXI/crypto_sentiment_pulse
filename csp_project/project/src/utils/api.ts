@@ -1,5 +1,8 @@
 import { Event, OnChainData, SentimentData } from '../types';
 
+// In-memory cache for sentiment data
+const sentimentCache: Record<string, { data: SentimentData; timestamp: number }> = {};
+
 interface CoinInfo {
   name: string;
   coinGecko: string;
@@ -232,6 +235,15 @@ const fetchSocialSentiment = async (coin: string, signal?: AbortSignal): Promise
 
 export const fetchSentimentData = async (coin: string, options: { signal?: AbortSignal } = {}): Promise<SentimentData> => {
   console.log('Fetching sentiment data for', coin);
+
+  // Check cache first
+  const cached = sentimentCache[coin];
+  const cacheDuration = 6 * 60 * 60 * 1000; // 6 hours in ms
+  if (cached && Date.now() - cached.timestamp < cacheDuration) {
+    console.log(`Using cached sentiment data for ${coin}`);
+    return cached.data;
+  }
+
   const coinInfo = SUPPORTED_COINS[coin];
   if (!coinInfo) throw new Error(`Unsupported coin: ${coin}`);
 
@@ -273,12 +285,16 @@ export const fetchSentimentData = async (coin: string, options: { signal?: Abort
   const sentimentScore = (0.5 * newsScore) + (0.2 * onChainData.activeWalletsGrowth) + (0.2 * (onChainData.largeTransactions / 500)) + (0.1 * socialScore);
   const finalScore = Math.min(Math.max(sentimentScore, -10), 10);
   console.log(`Computed sentiment for ${coin}: ${finalScore}`);
-  return {
+  const result = {
     coin,
     score: finalScore,
     socialScore,
     timestamp: new Date().toISOString(),
   };
+
+  // Cache the result
+  sentimentCache[coin] = { data: result, timestamp: Date.now() };
+  return result;
 };
 
 export { STATIC_PRICE_CHANGES };
