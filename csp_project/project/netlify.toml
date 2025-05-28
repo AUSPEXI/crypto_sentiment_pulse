@@ -6,15 +6,14 @@
   publishOrigin = "config"
 
 [build.environment]
-  NEWSAPI_API_KEY = ""
-  VITE_CRYPTOPANIC_API_TOKEN = ""
-  VITE_HUGGINGFACE_API_KEY = ""
-  VITE_OPENAI_API_KEY = ""
-  VITE_SANTIMENT_API_KEY = ""
-  COINMETRICS_API_KEY = ""
+  NEWSAPI_API_KEY = "e53f506dfd664b25aaa4267cc911114b"
+  CRYPTOPANIC_API_TOKEN = "3bdab173fe548d7affbd5a5517b9a44b5334e854"
+  HUGGINGFACE_API_KEY = "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"
+  OPENAI_API_KEY = "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"
+  SANTIMENT_API_KEY = "krlem6icglknkyz2_ftyn52k6uj2ijxpp"
 
 [functions]
-  directory = "netlify/functions"
+  directory = ".netlify/functions"
 
 [[redirects]]
   from = "/api/proxy/*"
