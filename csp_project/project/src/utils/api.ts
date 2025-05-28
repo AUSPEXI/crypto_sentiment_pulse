@@ -1,36 +1,38 @@
 import { Event, OnChainData, SentimentData } from '../types';
 
-// In-memory cache for sentiment data
+// In-memory cache for sentiment data and rate limits
 const sentimentCache: Record<string, { data: SentimentData; timestamp: number }> = {};
+const rateLimitCache: Record<string, { lastAttempt: number; retryAfter: number }> = {};
 
 interface CoinInfo {
   name: string;
   coinGecko: string;
   coinMetrics: string;
+  santiment: string;
 }
 
 const SUPPORTED_COINS: Record<string, CoinInfo> = {
-  BTC: { name: 'Bitcoin', coinGecko: 'bitcoin', coinMetrics: 'btc' },
-  ETH: { name: 'Ethereum', coinGecko: 'ethereum', coinMetrics: 'eth' },
-  USDT: { name: 'Tether', coinGecko: 'tether', coinMetrics: 'usdt' },
-  BNB: { name: 'Binance Coin', coinGecko: 'binancecoin', coinMetrics: 'bnb' },
-  SOL: { name: 'Solana', coinGecko: 'solana', coinMetrics: 'sol' },
-  USDC: { name: 'USD Coin', coinGecko: 'usd-coin', coinMetrics: 'usdc' },
-  DOGE: { name: 'Dogecoin', coinGecko: 'dogecoin', coinMetrics: 'doge' },
-  ADA: { name: 'Cardano', coinGecko: 'cardano', coinMetrics: 'ada' },
-  TRX: { name: 'TRON', coinGecko: 'tron', coinMetrics: 'trx' },
-  AVAX: { name: 'Avalanche', coinGecko: 'avalanche-2', coinMetrics: 'avax' },
-  XRP: { name: 'Ripple', coinGecko: 'ripple', coinMetrics: 'xrp' },
-  LTC: { name: 'Litecoin', coinGecko: 'litecoin', coinMetrics: 'ltc' },
-  BCH: { name: 'Bitcoin Cash', coinGecko: 'bitcoin-cash', coinMetrics: 'bch' },
-  DOT: { name: 'Polkadot', coinGecko: 'polkadot', coinMetrics: 'dot' },
-  LINK: { name: 'Chainlink', coinGecko: 'chainlink', coinMetrics: 'link' },
-  MATIC: { name: 'Polygon', coinGecko: 'matic-network', coinMetrics: 'matic' },
-  XLM: { name: 'Stellar', coinGecko: 'stellar', coinMetrics: 'xlm' },
-  ATOM: { name: 'Cosmos', coinGecko: 'cosmos', coinMetrics: 'atom' },
-  CRO: { name: 'Crypto.com Coin', coinGecko: 'crypto-com-chain', coinMetrics: 'cro' },
-  ALGO: { name: 'Algorand', coinGecko: 'algorand', coinMetrics: 'algo' },
-  PEPE: { name: 'Pepe', coinGecko: 'pepe', coinMetrics: 'pepe' },
+  BTC: { name: 'Bitcoin', coinGecko: 'bitcoin', coinMetrics: 'btc', santiment: 'bitcoin' },
+  ETH: { name: 'Ethereum', coinGecko: 'ethereum', coinMetrics: 'eth', santiment: 'ethereum' },
+  USDT: { name: 'Tether', coinGecko: 'tether', coinMetrics: 'usdt', santiment: 'tether' },
+  BNB: { name: 'Binance Coin', coinGecko: 'binancecoin', coinMetrics: 'bnb', santiment: 'binance-coin' },
+  SOL: { name: 'Solana', coinGecko: 'solana', coinMetrics: 'sol', santiment: 'solana' },
+  USDC: { name: 'USD Coin', coinGecko: 'usd-coin', coinMetrics: 'usdc', santiment: 'usd-coin' },
+  DOGE: { name: 'Dogecoin', coinGecko: 'dogecoin', coinMetrics: 'doge', santiment: 'dogecoin' },
+  ADA: { name: 'Cardano', coinGecko: 'cardano', coinMetrics: 'ada', santiment: 'cardano' },
+  TRX: { name: 'TRON', coinGecko: 'tron', coinMetrics: 'trx', santiment: 'tron' },
+  AVAX: { name: 'Avalanche', coinGecko: 'avalanche-2', coinMetrics: 'avax', santiment: 'avalanche' },
+  XRP: { name: 'Ripple', coinGecko: 'ripple', coinMetrics: 'xrp', santiment: 'ripple' },
+  LTC: { name: 'Litecoin', coinGecko: 'litecoin', coinMetrics: 'ltc', santiment: 'litecoin' },
+  BCH: { name: 'Bitcoin Cash', coinGecko: 'bitcoin-cash', coinMetrics: 'bch', santiment: 'bitcoin-cash' },
+  DOT: { name: 'Polkadot', coinGecko: 'polkadot', coinMetrics: 'dot', santiment: 'polkadot' },
+  LINK: { name: 'Chainlink', coinGecko: 'chainlink', coinMetrics: 'link', santiment: 'chainlink' },
+  MATIC: { name: 'Polygon', coinGecko: 'matic-network', coinMetrics: 'matic', santiment: 'polygon' },
+  XLM: { name: 'Stellar', coinGecko: 'stellar', coinMetrics: 'xlm', santiment: 'stellar' },
+  ATOM: { name: 'Cosmos', coinGecko: 'cosmos', coinMetrics: 'atom', santiment: 'cosmos' },
+  CRO: { name: 'Crypto.com Coin', coinGecko: 'crypto-com-chain', coinMetrics: 'cro', santiment: 'crypto-com-coin' },
+  ALGO: { name: 'Algorand', coinGecko: 'algorand', coinMetrics: 'algo', santiment: 'algorand' },
+  PEPE: { name: 'Pepe', coinGecko: 'pepe', coinMetrics: 'pepe', santiment: 'pepe' },
 };
 
 const STATIC_NEWS: Record<string, Event[]> = {
@@ -105,6 +107,21 @@ export const STATIC_PRICE_CHANGES: Record<string, number> = {
   PEPE: 1.50,
 };
 
+// Rate limit check
+const checkRateLimit = (api: string): boolean => {
+  const now = Date.now();
+  const cache = rateLimitCache[api] || { lastAttempt: 0, retryAfter: 0 };
+  if (now < cache.lastAttempt + cache.retryAfter) {
+    console.log(`Rate limit hit for ${api}, retry after ${cache.retryAfter}ms`);
+    return false;
+  }
+  return true;
+};
+
+const updateRateLimit = (api: string, retryAfter: number) => {
+  rateLimitCache[api] = { lastAttempt: Date.now(), retryAfter };
+};
+
 const makeProxiedRequest = async (
   api: string,
   endpoint: string,
@@ -114,6 +131,10 @@ const makeProxiedRequest = async (
   signal?: AbortSignal,
   baseUrl?: string
 ): Promise<any> => {
+  if (!checkRateLimit(api)) {
+    throw new Error(`Rate limit exceeded for ${api}`);
+  }
+
   console.log(`Making proxied request to ${api}/${endpoint} with params:`, params);
   const searchParams = new URLSearchParams();
   searchParams.append('api', api);
@@ -134,6 +155,11 @@ const makeProxiedRequest = async (
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`Proxied request failed for ${api}/${endpoint}: ${errorText} Status: ${response.status}`);
+      if (response.status === 429) {
+        const retryAfter = parseInt(response.headers.get('Retry-After') || '60') * 1000;
+        updateRateLimit(api, retryAfter);
+        throw new Error(`Rate limit exceeded for ${api}, retry after ${retryAfter}ms`);
+      }
       if (retryCount < maxRetries && response.status >= 500) {
         const delay = Math.pow(2, retryCount) * 1000;
         console.log(`Retrying request to ${api}/${endpoint} (attempt ${retryCount + 1}) after ${delay}ms`);
@@ -187,15 +213,42 @@ const fetchCryptoPanicNews = async (coin: string, signal?: AbortSignal): Promise
   }
 };
 
-const fetchRecentNews = async (coin: string, signal?: AbortSignal): Promise<string> => {
-  console.log('Fetching news for', coin);
+const fetchSantimentNews = async (coin: string, signal?: AbortSignal): Promise<Event[]> => {
+  console.log('Fetching news from Santiment for', coin);
   const coinInfo = SUPPORTED_COINS[coin];
   try {
     const params = {
-      q: `crypto ${coinInfo.name}`,
+      slug: coinInfo.santiment,
+      from: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      to: new Date().toISOString(),
+    };
+    const data = await makeProxiedRequest('santiment', 'news', params, 'GET', 0, signal);
+    console.log('Santiment news response:', data);
+    const articles = data.data || [];
+    return articles.map((article: any) => ({
+      title: article.title,
+      description: article.description || '',
+      url: article.url,
+      publishedAt: article.datetime,
+    }));
+  } catch (error) {
+    console.error(`Santiment news fetch failed for ${coin}:`, error.message);
+    return [];
+  }
+};
+
+const fetchRecentNews = async (coin: string, signal?: AbortSignal): Promise<string> => {
+  console.log('Fetching news for', coin);
+  const coinInfo = SUPPORTED_COINS[coin];
+
+  // Try NewsAPI
+  try {
+    const params = {
+      q: `${coinInfo.name} cryptocurrency`,
       language: 'en',
       pageSize: 5,
       sortBy: 'publishedAt',
+      sources: 'coindesk,cointelegraph',
     };
     console.log('NewsAPI request params:', params);
     const data = await makeProxiedRequest('newsapi', 'everything', params, 'GET', 0, signal);
@@ -205,16 +258,29 @@ const fetchRecentNews = async (coin: string, signal?: AbortSignal): Promise<stri
     return articles.map((article: any) => article.title).join('. ');
   } catch (error) {
     console.error(`NewsAPI fetch failed for ${coin}:`, error.message);
-    console.log(`Falling back to CryptoPanic for ${coin}`);
-    try {
-      const panicEvents = await fetchCryptoPanicNews(coin, signal);
-      if (panicEvents.length) return panicEvents.map((event: any) => event.title).join('. ');
-    } catch (panicError) {
-      console.error(`CryptoPanic fetch failed for ${coin}:`, panicError.message);
-    }
-    console.log(`Falling back to STATIC_NEWS for ${coin}`);
-    return STATIC_NEWS[coin]?.map(event => event.title).join('. ') || '';
   }
+
+  // Fallback to CryptoPanic
+  try {
+    const panicEvents = await fetchCryptoPanicNews(coin, signal);
+    if (panicEvents.length) return panicEvents.map((event: any) => event.title).join('. ');
+    console.log(`CryptoPanic returned no events for ${coin}`);
+  } catch (panicError) {
+    console.error(`CryptoPanic fetch failed for ${coin}:`, panicError.message);
+  }
+
+  // Fallback to Santiment
+  try {
+    const santimentEvents = await fetchSantimentNews(coin, signal);
+    if (santimentEvents.length) return santimentEvents.map((event: any) => event.title).join('. ');
+    console.log(`Santiment returned no events for ${coin}`);
+  } catch (santimentError) {
+    console.error(`Santiment fetch failed for ${coin}:`, santimentError.message);
+  }
+
+  // Fallback to STATIC_NEWS
+  console.log(`Falling back to STATIC_NEWS for ${coin}`);
+  return STATIC_NEWS[coin]?.map(event => event.title).join('. ') || '';
 };
 
 const fetchEvents = async (coin: string, signal?: AbortSignal): Promise<Event[]> => {
@@ -223,9 +289,11 @@ const fetchEvents = async (coin: string, signal?: AbortSignal): Promise<Event[]>
     throw new Error('Invalid coin parameter: coin must be a non-empty string');
   }
   const coinInfo = SUPPORTED_COINS[coin];
+
+  // Try NewsAPI
   try {
     const params = {
-      q: `${coinInfo.name} event`,
+      q: `${coinInfo.name} event cryptocurrency`,
       language: 'en',
       pageSize: 3,
     };
@@ -239,11 +307,78 @@ const fetchEvents = async (coin: string, signal?: AbortSignal): Promise<Event[]>
     }));
   } catch (error) {
     console.error(`Events fetch failed for ${coin}:`, error.message);
-    console.log(`Falling back to CryptoPanic for ${coin}`);
+  }
+
+  // Fallback to CryptoPanic
+  try {
     const panicEvents = await fetchCryptoPanicNews(coin, signal);
     if (panicEvents.length) return panicEvents;
-    console.log(`Falling back to STATIC_NEWS for ${coin}`);
-    return STATIC_NEWS[coin] || [];
+    console.log(`CryptoPanic returned no events for ${coin}`);
+  } catch (panicError) {
+    console.error(`CryptoPanic fetch failed for ${coin}:`, panicError.message);
+  }
+
+  // Fallback to Santiment
+  try {
+    const santimentEvents = await fetchSantimentNews(coin, signal);
+    if (santimentEvents.length) return santimentEvents;
+    console.log(`Santiment returned no events for ${coin}`);
+  } catch (santimentError) {
+    console.error(`Santiment fetch failed for ${coin}:`, santimentError.message);
+  }
+
+  // Fallback to STATIC_NEWS
+  console.log(`Falling back to STATIC_NEWS for ${coin}`);
+  return STATIC_NEWS[coin] || [];
+};
+
+const fetchCoinGeckoData = async (coin: string, signal?: AbortSignal): Promise<OnChainData> => {
+  console.log('Fetching on-chain data from CoinGecko for', coin);
+  const coinInfo = SUPPORTED_COINS[coin];
+  try {
+    const params = {
+      id: coinInfo.coinGecko,
+      vs_currency: 'usd',
+      days: '1',
+    };
+    const data = await makeProxiedRequest('coingecko', 'coins/markets', params, 'GET', 0, signal);
+    console.log('CoinGecko response:', data);
+    return {
+      coin,
+      activeWallets: 0, // CoinGecko doesn't provide wallet data
+      activeWalletsGrowth: 0,
+      largeTransactions: data[0]?.total_volume ? Math.round(data[0].total_volume / 1000000) : 0,
+      timestamp: new Date().toISOString(),
+    };
+  } catch (error) {
+    console.error(`CoinGecko fetch failed for ${coin}:`, error.message);
+    return { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: new Date().toISOString() };
+  }
+};
+
+const fetchSantimentOnChainData = async (coin: string, signal?: AbortSignal): Promise<OnChainData> => {
+  console.log('Fetching on-chain data from Santiment for', coin);
+  const coinInfo = SUPPORTED_COINS[coin];
+  try {
+    const params = {
+      slug: coinInfo.santiment,
+      from: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      to: new Date().toISOString(),
+      interval: '1d',
+    };
+    const data = await makeProxiedRequest('santiment', 'active_addresses_24h', params, 'GET', 0, signal);
+    console.log('Santiment on-chain response:', data);
+    const latest = data.data[data.data.length - 1] || {};
+    return {
+      coin,
+      activeWallets: latest.active_addresses || 0,
+      activeWalletsGrowth: 0,
+      largeTransactions: 0, // Santiment free tier doesn't provide this
+      timestamp: new Date().toISOString(),
+    };
+  } catch (error) {
+    console.error(`Santiment on-chain fetch failed for ${coin}:`, error.message);
+    return { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: new Date().toISOString() };
   }
 };
 
@@ -253,10 +388,11 @@ export const fetchOnChainData = async (coin: string, signal?: AbortSignal): Prom
   if (!coinInfo) throw new Error(`Unsupported coin: ${coin}`);
 
   if (coin === 'USDT' || coin === 'PEPE') {
-    console.log(`Skipping live CoinMetrics fetch for ${coin}; using STATIC_WALLET_DATA`);
+    console.log(`Skipping live fetch for ${coin}; using STATIC_WALLET_DATA`);
     return STATIC_WALLET_DATA[coin] || { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: new Date().toISOString() };
   }
 
+  // Try CoinMetrics
   try {
     const params = {
       assets: coinInfo.coinMetrics,
@@ -274,20 +410,66 @@ export const fetchOnChainData = async (coin: string, signal?: AbortSignal): Prom
         largeTransactions: parseInt(latest.TxCnt ? latest.TxCnt * 0.01 : 0),
         timestamp: new Date().toISOString(),
       };
-      console.log(`Fetched live on-chain data for ${coin}`);
+      console.log(`Fetched live on-chain data for ${coin} from CoinMetrics`);
       return result;
     }
     throw new Error('No data found from CoinMetrics');
   } catch (error) {
     console.error(`CoinMetrics fetch failed for ${coin}:`, error.message);
-    console.log(`Falling back to STATIC_WALLET_DATA for ${coin}`);
-    return STATIC_WALLET_DATA[coin] || { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: new Date().toISOString() };
+  }
+
+  // Fallback to Santiment
+  try {
+    const santimentData = await fetchSantimentOnChainData(coin, signal);
+    if (santimentData.activeWallets > 0) {
+      console.log(`Fetched on-chain data for ${coin} from Santiment`);
+      return santimentData;
+    }
+  } catch (error) {
+    console.error(`Santiment on-chain fetch failed for ${coin}:`, error.message);
+  }
+
+  // Fallback to CoinGecko
+  try {
+    const coinGeckoData = await fetchCoinGeckoData(coin, signal);
+    if (coinGeckoData.largeTransactions > 0) {
+      console.log(`Fetched on-chain data for ${coin} from CoinGecko`);
+      return coinGeckoData;
+    }
+  } catch (error) {
+    console.error(`CoinGecko fetch failed for ${coin}:`, error.message);
+  }
+
+  // Fallback to STATIC_WALLET_DATA
+  console.log(`Falling back to STATIC_WALLET_DATA for ${coin}`);
+  return STATIC_WALLET_DATA[coin] || { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: new Date().toISOString() };
+};
+
+const fetchSantimentSocialSentiment = async (coin: string, signal?: AbortSignal): Promise<number> => {
+  console.log('Fetching social sentiment from Santiment for', coin);
+  const coinInfo = SUPPORTED_COINS[coin];
+  try {
+    const params = {
+      slug: coinInfo.santiment,
+      from: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      to: new Date().toISOString(),
+      interval: '1d',
+    };
+    const data = await makeProxiedRequest('santiment', 'sentiment_balance_reddit', params, 'GET', 0, signal);
+    console.log('Santiment sentiment response:', data);
+    const latest = data.data[data.data.length - 1] || {};
+    return latest.sentiment_balance || 0;
+  } catch (error) {
+    console.error(`Santiment social sentiment fetch failed for ${coin}:`, error.message);
+    return 0;
   }
 };
 
 const fetchSocialSentiment = async (coin: string, signal?: AbortSignal): Promise<number> => {
   console.log('Fetching social sentiment for', coin);
   const coinInfo = SUPPORTED_COINS[coin];
+
+  // Try Reddit
   try {
     const redditUrl = `https://www.reddit.com/r/cryptocurrency/search.json?q=${coinInfo.name}&sort=new&restrict_sr=on`;
     const response = await fetch(redditUrl, { signal });
@@ -303,7 +485,34 @@ const fetchSocialSentiment = async (coin: string, signal?: AbortSignal): Promise
     const averageScore = sentimentScores.length ? sentimentScores.reduce((a: number, b: number) => a + b, 0) / sentimentScores.length : 0;
     return averageScore * 10;
   } catch (error) {
-    console.error(`Social sentiment fetch failed for ${coin}:`, error.message);
+    console.error(`Reddit social sentiment fetch failed for ${coin}:`, error.message);
+  }
+
+  // Fallback to Santiment
+  try {
+    const santimentScore = await fetchSantimentSocialSentiment(coin, signal);
+    if (santimentScore !== 0) return santimentScore;
+  } catch (error) {
+    console.error(`Santiment social sentiment fetch failed for ${coin}:`, error.message);
+  }
+
+  return 0;
+};
+
+const fetchHuggingFaceSentiment = async (text: string, signal?: AbortSignal): Promise<number> => {
+  console.log('Fetching sentiment from Hugging Face for text:', text);
+  try {
+    const params = {
+      inputs: text,
+    };
+    const data = await makeProxiedRequest('huggingface', 'cardiffnlp/twitter-roberta-base-sentiment-latest', params, 'POST', 0, signal);
+    console.log('Hugging Face response:', data);
+    const scores = data[0];
+    const positive = scores.find((s: any) => s.label === 'positive')?.score || 0;
+    const negative = scores.find((s: any) => s.label === 'negative')?.score || 0;
+    return (positive - negative) * 10; // Scale to -10 to 10
+  } catch (error) {
+    console.error('Hugging Face sentiment fetch failed:', error.message);
     return 0;
   }
 };
@@ -325,23 +534,31 @@ export const fetchSentimentData = async (coin: string, options: { signal?: Abort
   let onChainData: OnChainData = { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: new Date().toISOString() };
   let socialScore = 0;
 
+  // Fetch news and compute sentiment
   try {
     const newsText = await fetchRecentNews(coin, options.signal);
     if (newsText) {
-      const openAiParams = {
-        model: 'gpt-3.5-turbo',
-        messages: [{ role: 'user', content: `Sentiment score -10 to 10 for: ${newsText}` }],
-        max_tokens: 60,
-        temperature: 0.5,
-      };
-      const newsResponse = await makeProxiedRequest('openai', 'chat/completions', openAiParams, 'POST', 0, options.signal);
-      newsScore = parseFloat(newsResponse.choices[0].message.content.trim()) || 0;
+      try {
+        const openAiParams = {
+          model: 'gpt-3.5-turbo',
+          messages: [{ role: 'user', content: `Sentiment score -10 to 10 for: ${newsText}` }],
+          max_tokens: 60,
+          temperature: 0.5,
+        };
+        const newsResponse = await makeProxiedRequest('openai', 'chat/completions', openAiParams, 'POST', 0, options.signal);
+        newsScore = parseFloat(newsResponse.choices[0].message.content.trim()) || 0;
+      } catch (error) {
+        console.error(`OpenAI sentiment fetch failed for ${coin}:`, error.message);
+        // Fallback to Hugging Face
+        newsScore = await fetchHuggingFaceSentiment(newsText, options.signal);
+      }
     }
   } catch (error) {
     console.error(`News sentiment fetch failed for ${coin}:`, error.message);
     newsScore = 0;
   }
 
+  // Fetch on-chain data
   try {
     onChainData = await fetchOnChainData(coin, options.signal);
   } catch (error) {
@@ -349,6 +566,7 @@ export const fetchSentimentData = async (coin: string, options: { signal?: Abort
     onChainData = STATIC_WALLET_DATA[coin] || { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: new Date().toISOString() };
   }
 
+  // Fetch social sentiment
   try {
     socialScore = await fetchSocialSentiment(coin, options.signal);
   } catch (error) {
