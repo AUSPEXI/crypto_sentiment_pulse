@@ -1,6 +1,6 @@
 // src/components/PortfolioTracker.tsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { fetchSentimentData, STATIC_COINS } from '../utils/api';
+import { fetchSentimentData, SUPPORTED_COINS } from '../utils/api';
 import { PortfolioItem } from '../types';
 import { Trash2 } from 'lucide-react';
 import EventAlerts from './EventAlerts';
