@@ -54,7 +54,9 @@ exports.handler = async (event) => {
   } else if (api === 'huggingface') {
     headers['Authorization'] = `Bearer ${apiKey}`;
     headers['Content-Type'] = 'application/json';
-  } else if (api === 'newsapi' || api === 'coinmetrics' || api === 'cryptopanic' || api === 'santiment') {
+  } else if (api === 'newsapi') {
+    urlParams.apiKey = apiKey; // Use apiKey for NewsAPI
+  } else if (api === 'coinmetrics' || api === 'cryptopanic' || api === 'santiment') {
     urlParams.api_key = apiKey;
   }
 
