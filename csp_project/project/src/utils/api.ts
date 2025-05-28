@@ -296,3 +296,6 @@ export const fetchSentimentData = async (coin: string, options: { signal?: Abort
   sentimentCache[coin] = { data: result, timestamp: Date.now() };
   return result;
 };
+
+// Export additional functions used by components
+export { fetchEvents };
