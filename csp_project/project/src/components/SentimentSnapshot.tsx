@@ -15,7 +15,6 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
   const defaultCoins = ['BTC', 'ETH', 'BNB', 'SOL', 'USDC', 'DOGE', 'ADA', 'TRX', 'AVAX'];
   const coinsToFetch = selectedCoins.length > 0 ? selectedCoins : defaultCoins;
 
-  // Timeout wrapper for promises
   const withTimeout = async (promise: Promise<any>, timeoutMs: number) => {
     const timeout = new Promise((_, reject) => {
       setTimeout(() => reject(new Error('Request timed out')), timeoutMs);
@@ -24,15 +23,12 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
   };
 
   useEffect(() => {
-    let isFetching = false;
     let abortController = new AbortController();
+    let timeoutId: NodeJS.Timeout | null = null;
 
     const fetchData = async () => {
-      if (isFetching) {
-        abortController.abort();
-        abortController = new AbortController();
-      }
-      isFetching = true;
+      abortController.abort();
+      abortController = new AbortController();
       setLoading(true);
       setError(null);
       try {
@@ -54,16 +50,15 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
           setSentimentData(fallbackData);
         }
       } finally {
-        isFetching = false;
         setLoading(false);
+        timeoutId = setTimeout(fetchData, 6 * 60 * 60 * 1000);
       }
     };
 
     fetchData();
-    const intervalId = setInterval(fetchData, 6 * 60 * 60 * 1000);
     return () => {
       abortController.abort();
-      clearInterval(intervalId);
+      if (timeoutId) clearTimeout(timeoutId);
     };
   }, [coinsToFetch]);
 
