@@ -144,10 +144,10 @@ const fetchRecentNews = async (coin: string, signal?: AbortSignal): Promise<stri
     };
     console.log('NewsAPI request params:', params);
     const data = await makeProxiedRequest('newsapi', 'top-headlines', params, 'GET', 0, signal);
-    console.log('NewsAPI response:', data);
+    console.log('NewsAPI full response:', JSON.stringify(data, null, 2));
     const articles = data.articles || [];
+    if (!articles.length) throw new Error('No news articles found');
     const titles = articles.map((article: any) => article.title).join('. ');
-    if (!titles) throw new Error('No news articles found');
     return titles;
   } catch (error) {
     console.error(`News fetch failed for ${coin}:`, error.message);
@@ -192,9 +192,10 @@ export const fetchOnChainData = async (coin: string, signal?: AbortSignal): Prom
   if (!coinInfo) throw new Error(`Unsupported coin: ${coin}`);
 
   try {
+    const metrics = coin === 'USDT' ? 'TxCnt' : 'AdrActCnt,TxCnt';
     const params = {
       assets: coinInfo.coinMetrics,
-      metrics: 'AdrActCnt,TxCnt',
+      metrics,
     };
     const data = await makeProxiedRequest('coinmetrics', 'v4/timeseries/asset-metrics', params, 'GET', 0, signal);
     const assetData = data.data?.[0];
