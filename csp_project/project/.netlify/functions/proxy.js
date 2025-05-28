@@ -1,4 +1,3 @@
-// netlify/functions/proxy.ts
 import { Handler } from '@netlify/functions';
 
 const API_KEYS = {
@@ -7,7 +6,7 @@ const API_KEYS = {
   openai: process.env.OPENAI_API_KEY || '',
   santiment: process.env.SANTIMENT_API_KEY || '',
   huggingface: process.env.HUGGINGFACE_API_KEY || '',
-  coingecko: '', // CoinGecko doesn't require an API key for public endpoints
+  coingecko: '',
 };
 
 const BASE_URLS = {
@@ -50,19 +49,23 @@ export const handler: Handler = async (event) => {
   }
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
     const response = await fetch(url, {
       method,
       headers,
       body: method === 'POST' ? JSON.stringify(parsedParams) : undefined,
-      timeout: 10000, // Add timeout to prevent hanging
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
-      console.error(`Proxy error for ${api}/${endpoint}: Status ${response.status}`);
+      const errorBody = await response.text();
+      console.error(`Proxy error for ${api}/${endpoint}: Status ${response.status}, Body: ${errorBody}`);
       return {
         statusCode: response.status,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-        body: JSON.stringify({ ...defaultResponse, error: `Upstream error: ${response.statusText}` }),
+        body: JSON.stringify({ ...defaultResponse, error: `Upstream error: ${response.status} - ${errorBody}` }),
       };
     }
 
@@ -73,7 +76,7 @@ export const handler: Handler = async (event) => {
       body: JSON.stringify({ status: 'success', data }),
     };
   } catch (error) {
-    console.error(`Proxy error for ${api}/${endpoint}:`, error.message);
+    console.error(`Proxy error for ${api}/${endpoint}: ${error.message}`);
     return {
       statusCode: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
