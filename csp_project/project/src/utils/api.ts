@@ -296,5 +296,3 @@ export const fetchSentimentData = async (coin: string, options: { signal?: Abort
   sentimentCache[coin] = { data: result, timestamp: Date.now() };
   return result;
 };
-
-export { STATIC_PRICE_CHANGES };
