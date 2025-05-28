@@ -1,4 +1,3 @@
-// src/App.tsx
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import SentimentSnapshot from './components/SentimentSnapshot';
@@ -9,6 +8,7 @@ import Header from './components/Header';
 import CoinSelect from './components/CoinSelect';
 import DatasetInfo from './components/DatasetInfo';
 import About from './components/About';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const App: React.FC = () => {
   const [selectedCoins, setSelectedCoins] = useState<string[]>(['BTC', 'ETH', 'USDT']);
@@ -26,11 +26,17 @@ const App: React.FC = () => {
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-[2fr,1fr] gap-6">
             <div className="space-y-6">
-              <SentimentSnapshot selectedCoins={selectedCoins} />
-              <EventAlerts />
+              <ErrorBoundary>
+                <SentimentSnapshot selectedCoins={selectedCoins} />
+              </ErrorBoundary>
+              <ErrorBoundary>
+                <EventAlerts />
+              </ErrorBoundary>
             </div>
             <div className="space-y-6">
-              <OnChainInsights selectedCoins={selectedCoins} />
+              <ErrorBoundary>
+                <OnChainInsights selectedCoins={selectedCoins} />
+              </ErrorBoundary>
             </div>
           </div>
           <div className="mt-6 w-full">
