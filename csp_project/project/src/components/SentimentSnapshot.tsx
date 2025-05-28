@@ -24,7 +24,10 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
   };
 
   useEffect(() => {
+    let isFetching = false;
     const fetchData = async () => {
+      if (isFetching) return;
+      isFetching = true;
       setLoading(true);
       setError(null);
       try {
@@ -44,6 +47,7 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
         });
         setSentimentData(fallbackData);
       } finally {
+        isFetching = false;
         setLoading(false);
       }
     };
