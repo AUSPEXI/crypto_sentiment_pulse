@@ -45,7 +45,7 @@ exports.handler = async (event) => {
 
   const apiKey = API_KEYS[api];
   const headers = {};
-  let urlParams = params ? JSON.parse(params) : (method === 'post' ? body.params : {});
+  let urlParams = params ? JSON.parse(params) : (method === 'post' ? body : {});
   let fullUrl = `${baseUrl}/${endpoint}`;
 
   if (api === 'openai') {
