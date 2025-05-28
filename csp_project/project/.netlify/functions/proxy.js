@@ -19,12 +19,14 @@ const BASE_URLS = {
   coingecko: 'https://api.coingecko.com/api/v3',
 };
 
+const defaultResponse = { status: 'error', data: null };
+
 export const handler: Handler = async (event) => {
   const { api, endpoint, params, baseUrl } = event.queryStringParameters || {};
   if (!api || !endpoint) {
     return {
       statusCode: 400,
-      body: JSON.stringify({ error: 'Missing api or endpoint parameter' }),
+      body: JSON.stringify({ ...defaultResponse, error: 'Missing api or endpoint parameter' }),
     };
   }
 
@@ -34,7 +36,6 @@ export const handler: Handler = async (event) => {
   const method = event.httpMethod as 'GET' | 'POST';
   const parsedParams = params ? JSON.parse(params) : {};
 
-  // Add API key to headers or params
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
@@ -44,10 +45,7 @@ export const handler: Handler = async (event) => {
     headers['Authorization'] = `Bearer ${apiKey}`;
   } else if (api === 'santiment') {
     headers['Authorization'] = `Apikey ${apiKey}`;
-  }
-
-  // Add API key to params for CryptoPanic
-  if (api === 'cryptopanic' && parsedParams.auth_token) {
+  } else if (api === 'cryptopanic' && parsedParams.auth_token) {
     parsedParams.auth_token = apiKey;
   }
 
@@ -56,22 +54,30 @@ export const handler: Handler = async (event) => {
       method,
       headers,
       body: method === 'POST' ? JSON.stringify(parsedParams) : undefined,
+      timeout: 10000, // Add timeout to prevent hanging
     });
+
+    if (!response.ok) {
+      console.error(`Proxy error for ${api}/${endpoint}: Status ${response.status}`);
+      return {
+        statusCode: response.status,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify({ ...defaultResponse, error: `Upstream error: ${response.statusText}` }),
+      };
+    }
 
     const data = await response.json();
     return {
       statusCode: response.status,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-      body: JSON.stringify(data),
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ status: 'success', data }),
     };
   } catch (error) {
     console.error(`Proxy error for ${api}/${endpoint}:`, error.message);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: error.message }),
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ ...defaultResponse, error: error.message }),
     };
   }
 };
