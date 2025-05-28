@@ -16,25 +16,94 @@ const SUPPORTED_COINS: Record<string, CoinInfo> = {
   USDT: { name: 'Tether', coinGecko: 'tether', coinMetrics: 'usdt', santiment: 'tether' },
   BNB: { name: 'Binance Coin', coinGecko: 'binancecoin', coinMetrics: 'bnb', santiment: 'binance-coin' },
   SOL: { name: 'Solana', coinGecko: 'solana', coinMetrics: 'sol', santiment: 'solana' },
-  // ... (other coins omitted for brevity, include as needed)
+  USDC: { name: 'USD Coin', coinGecko: 'usd-coin', coinMetrics: 'usdc', santiment: 'usd-coin' },
+  DOGE: { name: 'Dogecoin', coinGecko: 'dogecoin', coinMetrics: 'doge', santiment: 'dogecoin' },
+  ADA: { name: 'Cardano', coinGecko: 'cardano', coinMetrics: 'ada', santiment: 'cardano' },
+  TRX: { name: 'TRON', coinGecko: 'tron', coinMetrics: 'trx', santiment: 'tron' },
+  AVAX: { name: 'Avalanche', coinGecko: 'avalanche-2', coinMetrics: 'avax', santiment: 'avalanche' },
+  XRP: { name: 'Ripple', coinGecko: 'ripple', coinMetrics: 'xrp', santiment: 'ripple' },
+  LTC: { name: 'Litecoin', coinGecko: 'litecoin', coinMetrics: 'ltc', santiment: 'litecoin' },
+  BCH: { name: 'Bitcoin Cash', coinGecko: 'bitcoin-cash', coinMetrics: 'bch', santiment: 'bitcoin-cash' },
+  DOT: { name: 'Polkadot', coinGecko: 'polkadot', coinMetrics: 'dot', santiment: 'polkadot' },
+  LINK: { name: 'Chainlink', coinGecko: 'chainlink', coinMetrics: 'link', santiment: 'chainlink' },
+  MATIC: { name: 'Polygon', coinGecko: 'matic-network', coinMetrics: 'matic', santiment: 'polygon' },
+  XLM: { name: 'Stellar', coinGecko: 'stellar', coinMetrics: 'xlm', santiment: 'stellar' },
+  ATOM: { name: 'Cosmos', coinGecko: 'cosmos', coinMetrics: 'atom', santiment: 'cosmos' },
+  CRO: { name: 'Crypto.com Coin', coinGecko: 'crypto-com-chain', coinMetrics: 'cro', santiment: 'crypto-com-coin' },
+  ALGO: { name: 'Algorand', coinGecko: 'algorand', coinMetrics: 'algo', santiment: 'algorand' },
+  PEPE: { name: 'Pepe', coinGecko: 'pepe', coinMetrics: 'pepe', santiment: 'pepe' },
 };
 
 const STATIC_NEWS: Record<string, Event[]> = {
   BTC: [{ title: 'Bitcoin hits new high', description: '', url: '#', publishedAt: '2025-05-27T10:00:00Z' }],
   ETH: [{ title: 'Ethereum upgrades', description: '', url: '#', publishedAt: '2025-05-27T09:00:00Z' }],
-  // ... (other static news omitted for brevity, include as needed)
+  USDT: [{ title: 'Tether stable', description: '', url: '#', publishedAt: '2025-05-27T08:00:00Z' }],
+  BNB: [{ title: 'BNB news', description: '', url: '#', publishedAt: '2025-05-27T07:00:00Z' }],
+  SOL: [{ title: 'Solana update', description: '', url: '#', publishedAt: '2025-05-27T06:00:00Z' }],
+  USDC: [{ title: 'USDC stable', description: '', url: '#', publishedAt: '2025-05-27T05:00:00Z' }],
+  DOGE: [{ title: 'Dogecoin trend', description: '', url: '#', publishedAt: '2025-05-27T04:00:00Z' }],
+  ADA: [{ title: 'Cardano news', description: '', url: '#', publishedAt: '2025-05-27T03:00:00Z' }],
+  TRX: [{ title: 'TRON update', description: '', url: '#', publishedAt: '2025-05-27T02:00:00Z' }],
+  AVAX: [{ title: 'Avalanche news', description: '', url: '#', publishedAt: '2025-05-27T01:00:00Z' }],
+  XRP: [{ title: 'Ripple update', description: '', url: '#', publishedAt: '2025-05-26T23:00:00Z' }],
+  LTC: [{ title: 'Litecoin news', description: '', url: '#', publishedAt: '2025-05-26T22:00:00Z' }],
+  BCH: [{ title: 'Bitcoin Cash trend', description: '', url: '#', publishedAt: '2025-05-26T21:00:00Z' }],
+  DOT: [{ title: 'Polkadot update', description: '', url: '#', publishedAt: '2025-05-26T20:00:00Z' }],
+  LINK: [{ title: 'Chainlink news', description: '', url: '#', publishedAt: '2025-05-26T19:00:00Z' }],
+  MATIC: [{ title: 'Polygon trend', description: '', url: '#', publishedAt: '2025-05-26T18:00:00Z' }],
+  XLM: [{ title: 'Stellar update', description: '', url: '#', publishedAt: '2025-05-26T17:00:00Z' }],
+  ATOM: [{ title: 'Cosmos news', description: '', url: '#', publishedAt: '2025-05-26T16:00:00Z' }],
+  CRO: [{ title: 'Crypto.com news', description: '', url: '#', publishedAt: '2025-05-26T15:00:00Z' }],
+  ALGO: [{ title: 'Algorand update', description: '', url: '#', publishedAt: '2025-05-26T14:00:00Z' }],
+  PEPE: [{ title: 'Pepe meme coin surges', description: '', url: '#', publishedAt: '2025-05-26T13:00:00Z' }],
 };
 
 const STATIC_WALLET_DATA: Record<string, OnChainData> = {
   BTC: { coin: 'BTC', activeWallets: 800000, activeWalletsGrowth: 2.5, largeTransactions: 1200, timestamp: '2025-05-27T10:00:00Z' },
   ETH: { coin: 'ETH', activeWallets: 600000, activeWalletsGrowth: 3.0, largeTransactions: 900, timestamp: '2025-05-27T10:00:00Z' },
-  // ... (other static wallet data omitted for brevity, include as needed)
+  USDT: { coin: 'USDT', activeWallets: 500000, activeWalletsGrowth: 1.0, largeTransactions: 1500, timestamp: '2025-05-27T10:00:00Z' },
+  BNB: { coin: 'BNB', activeWallets: 400000, activeWalletsGrowth: 1.5, largeTransactions: 800, timestamp: '2025-05-27T10:00:00Z' },
+  SOL: { coin: 'SOL', activeWallets: 350000, activeWalletsGrowth: 2.0, largeTransactions: 700, timestamp: '2025-05-27T10:00:00Z' },
+  USDC: { coin: 'USDC', activeWallets: 450000, activeWalletsGrowth: 0.5, largeTransactions: 1000, timestamp: '2025-05-27T10:00:00Z' },
+  DOGE: { coin: 'DOGE', activeWallets: 300000, activeWalletsGrowth: 1.8, largeTransactions: 600, timestamp: '2025-05-27T10:00:00Z' },
+  ADA: { coin: 'ADA', activeWallets: 280000, activeWalletsGrowth: 1.2, largeTransactions: 500, timestamp: '2025-05-27T10:00:00Z' },
+  TRX: { coin: 'TRX', activeWallets: 250000, activeWalletsGrowth: 0.9, largeTransactions: 400, timestamp: '2025-05-27T10:00:00Z' },
+  AVAX: { coin: 'AVAX', activeWallets: 220000, activeWalletsGrowth: 1.3, largeTransactions: 300, timestamp: '2025-05-27T10:00:00Z' },
+  XRP: { coin: 'XRP', activeWallets: 200000, activeWalletsGrowth: 1.1, largeTransactions: 450, timestamp: '2025-05-27T10:00:00Z' },
+  LTC: { coin: 'LTC', activeWallets: 180000, activeWalletsGrowth: 0.8, largeTransactions: 350, timestamp: '2025-05-27T10:00:00Z' },
+  BCH: { coin: 'BCH', activeWallets: 160000, activeWalletsGrowth: 0.7, largeTransactions: 300, timestamp: '2025-05-27T10:00:00Z' },
+  DOT: { coin: 'DOT', activeWallets: 150000, activeWalletsGrowth: 1.0, largeTransactions: 250, timestamp: '2025-05-27T10:00:00Z' },
+  LINK: { coin: 'LINK', activeWallets: 140000, activeWalletsGrowth: 0.6, largeTransactions: 200, timestamp: '2025-05-27T10:00:00Z' },
+  MATIC: { coin: 'MATIC', activeWallets: 130000, activeWalletsGrowth: 0.9, largeTransactions: 180, timestamp: '2025-05-27T10:00:00Z' },
+  XLM: { coin: 'XLM', activeWallets: 120000, activeWalletsGrowth: 0.5, largeTransactions: 150, timestamp: '2025-05-27T10:00:00Z' },
+  ATOM: { coin: 'ATOM', activeWallets: 110000, activeWalletsGrowth: 0.7, largeTransactions: 140, timestamp: '2025-05-27T10:00:00Z' },
+  CRO: { coin: 'CRO', activeWallets: 100000, activeWalletsGrowth: 0.4, largeTransactions: 120, timestamp: '2025-05-27T10:00:00Z' },
+  ALGO: { coin: 'ALGO', activeWallets: 90000, activeWalletsGrowth: 0.6, largeTransactions: 100, timestamp: '2025-05-27T10:00:00Z' },
+  PEPE: { coin: 'PEPE', activeWallets: 80000, activeWalletsGrowth: 2.0, largeTransactions: 80, timestamp: '2025-05-27T10:00:00Z' },
 };
 
 const STATIC_PRICE_CHANGES: Record<string, number> = {
   BTC: 1.02,
   ETH: 0.78,
-  // ... (other price changes omitted for brevity, include as needed)
+  USDT: 0.84,
+  BNB: 0.65,
+  SOL: 1.12,
+  USDC: 0.99,
+  DOGE: 0.45,
+  ADA: 0.72,
+  TRX: 0.88,
+  AVAX: 0.91,
+  XRP: 0.55,
+  LTC: 0.67,
+  BCH: 0.59,
+  DOT: 0.81,
+  LINK: 0.73,
+  MATIC: 0.64,
+  XLM: 0.52,
+  ATOM: 0.69,
+  CRO: 0.48,
+  ALGO: 0.61,
+  PEPE: 1.50,
 };
 
 const checkRateLimit = (api: string): boolean => {
@@ -67,11 +136,11 @@ const makeProxiedRequest = async (
   if (baseUrl) searchParams.append('baseUrl', baseUrl);
 
   const url = `/api/proxy?${searchParams.toString()}`;
-  const maxRetries = 1; // Reduced retries to minimize delays
+  const maxRetries = 1;
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10-second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
     const response = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
@@ -100,7 +169,7 @@ const makeProxiedRequest = async (
       await new Promise(resolve => setTimeout(resolve, delay));
       return makeProxiedRequest(api, endpoint, params, method, retryCount + 1, signal, baseUrl);
     }
-    return null; // Return null on failure to trigger fallback
+    return null;
   }
 };
 
@@ -158,7 +227,7 @@ export const fetchSentimentData = async (coin: string, options: { signal?: Abort
 
   try {
     const newsText = await fetchRecentNews(coin, options.signal);
-    newsScore = 0; // Disable dynamic sentiment for stability
+    newsScore = 0;
   } catch (error) {
     newsScore = 0;
   }
@@ -170,12 +239,12 @@ export const fetchSentimentData = async (coin: string, options: { signal?: Abort
   }
 
   try {
-    socialScore = 0; // Disable dynamic social sentiment for stability
+    socialScore = 0;
   } catch (error) {
     socialScore = 0;
   }
 
-  const sentimentScore = 0; // Use static score to avoid computation errors
+  const sentimentScore = 0;
   const result = {
     coin,
     score: sentimentScore,
@@ -187,4 +256,4 @@ export const fetchSentimentData = async (coin: string, options: { signal?: Abort
   return result;
 };
 
-export { fetchEvents, STATIC_NEWS, SUPPORTED_COINS };
+export { fetchEvents, STATIC_NEWS, SUPPORTED_COINS, STATIC_PRICE_CHANGES };
