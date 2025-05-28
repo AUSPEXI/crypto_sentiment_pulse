@@ -8,7 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "export-data": "node scripts/exportData.js"
+    "export-data": "node scripts/exportData.js",
+    "postinstall": "npx update-browserslist-db@latest --quiet"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.18",
