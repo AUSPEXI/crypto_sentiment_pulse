@@ -10,11 +10,11 @@ const EventAlerts: React.FC<EventAlertsProps> = ({ coin }) => {
   const [error, setError] = useState<string | null>(null);
 
   // Timeout wrapper for promises
-  const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
-    const timeout = new Promise((_, reject) => {
+  const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number) => {
+    const timeout = new Promise<T>((_, reject) => {
       setTimeout(() => reject(new Error('Request timed out')), timeoutMs);
     });
-    return Promise.race([promise, timeout]) as Promise<T>;
+    return Promise.race([promise, timeout]);
   };
 
   useEffect(() => {
