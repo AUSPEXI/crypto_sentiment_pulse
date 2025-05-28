@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchSentimentData } from '../utils/api';
+import { fetchSentimentData, STATIC_PRICE_CHANGES } from '../utils/api';
 import { SentimentData } from '../types';
 import SentimentSpeedometer from './SentimentSpeedometer';
 
@@ -15,6 +15,14 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
   const defaultCoins = ['BTC', 'ETH', 'BNB', 'SOL', 'USDC', 'DOGE', 'ADA', 'TRX', 'AVAX'];
   const coinsToFetch = selectedCoins.length > 0 ? selectedCoins : defaultCoins;
 
+  // Timeout wrapper for promises
+  const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+    const timeout = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Request timed out')), timeoutMs);
+    });
+    return Promise.race([promise, timeout]) as Promise<T>;
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -22,14 +30,19 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
       try {
         const newData: Record<string, SentimentData> = {};
         for (const coin of coinsToFetch) {
-          const data = await fetchSentimentData(coin);
+          const data = await withTimeout(fetchSentimentData(coin), 15000); // 15s timeout per coin
           if (data && data.score !== undefined) newData[coin] = data;
           else console.warn(`Incomplete sentiment data for ${coin}, skipping`);
         }
         setSentimentData(newData);
       } catch (err) {
         console.error('Error fetching sentiment data:', err);
-        setError('Failed to fetch sentiment data. Please try again later.');
+        setError('Failed to fetch sentiment data. Using fallback data.');
+        const fallbackData: Record<string, SentimentData> = {};
+        coinsToFetch.forEach(coin => {
+          fallbackData[coin] = { coin, score: STATIC_PRICE_CHANGES[coin] || 0, socialScore: 0, timestamp: new Date().toISOString() };
+        });
+        setSentimentData(fallbackData);
       } finally {
         setLoading(false);
       }
