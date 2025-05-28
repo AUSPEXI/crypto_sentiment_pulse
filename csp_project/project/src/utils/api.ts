@@ -297,5 +297,5 @@ export const fetchSentimentData = async (coin: string, options: { signal?: Abort
   return result;
 };
 
-// Export additional functions used by components
-export { fetchEvents };
+// Export additional functions and constants used by components
+export { fetchEvents, STATIC_NEWS };
