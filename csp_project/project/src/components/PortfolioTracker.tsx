@@ -6,7 +6,7 @@ import { Trash2 } from 'lucide-react';
 import EventAlerts from './EventAlerts';
 import OnChainInsights from './OnChainInsights';
 
-const DEFAULT_COINS = STATIC_COINS.map(coin => coin.symbol);
+const DEFAULT_COINS = SUPPORTED_COINS.map(coin => coin.symbol);
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
