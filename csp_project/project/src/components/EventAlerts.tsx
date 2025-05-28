@@ -1,4 +1,3 @@
-// EventAlerts.tsx
 import React, { useState, useEffect } from 'react';
 import { fetchEvents, STATIC_NEWS, Event } from '../utils/api';
 
@@ -10,10 +9,18 @@ const EventAlerts: React.FC<EventAlertsProps> = ({ coin }) => {
   const [events, setEvents] = useState<Event[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  // Timeout wrapper for promises
+  const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+    const timeout = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Request timed out')), timeoutMs);
+    });
+    return Promise.race([promise, timeout]) as Promise<T>;
+  };
+
   useEffect(() => {
     const loadEvents = async () => {
       try {
-        const fetchedEvents = await fetchEvents(coin);
+        const fetchedEvents = await withTimeout(fetchEvents(coin), 15000); // 15s timeout
         setEvents(fetchedEvents.length > 0 ? fetchedEvents : STATIC_NEWS[coin] || []);
       } catch (err) {
         console.error('Error in EventAlerts:', err);
