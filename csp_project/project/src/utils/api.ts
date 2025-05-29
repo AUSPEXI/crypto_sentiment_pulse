@@ -256,4 +256,4 @@ export const fetchSentimentData = async (coin: string, options: { signal?: Abort
   return result;
 };
 
-export { fetchEvents, STATIC_NEWS, SUPPORTED_COINS, STATIC_PRICE_CHANGES };
+export { fetchEvents, fetchOnChainData, STATIC_NEWS, SUPPORTED_COINS, STATIC_PRICE_CHANGES };
