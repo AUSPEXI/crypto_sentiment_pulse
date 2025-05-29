@@ -6,22 +6,22 @@ interface ErrorBoundaryProps {
 
 interface ErrorBoundaryState {
   hasError: boolean;
+  error: Error | null;
 }
 
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  state: ErrorBoundaryState = { hasError: false };
-
-  static getDerivedStateFromError(error: any): ErrorBoundaryState {
-    return { hasError: true };
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('Error caught by ErrorBoundary:', error, errorInfo);
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
   }
 
   render() {
     if (this.state.hasError) {
-      return <div className="bg-red-100 text-red-700 p-3 rounded-md">Something went wrong. Please try again later.</div>;
+      return <h1>Something went wrong: {this.state.error?.message}</h1>;
     }
     return this.props.children;
   }
