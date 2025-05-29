@@ -1,23 +1,24 @@
 [build]
   base = "csp_project/project"
   command = "npm run build"
-  commandOrigin = "config"
-  publish = "dist"
-  publishOrigin = "config"
-
-[build.environment]
-  NEWSAPI_API_KEY = "e53f506dfd664b25aaa4267cc911114b"
-  CRYPTOPANIC_API_TOKEN = "3bdab173fe548d7affbd5a5517b9a44b5334e854"
-  HUGGINGFACE_API_KEY = "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"
-  OPENAI_API_KEY = "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"
-  SANTIMENT_API_KEY = "krlem6icglknkyz2_ftyn52k6uj2ijxpp"
+  publish = "csp_project/project/dist"
+  environment = [
+    "CRYPTOPANIC_API_TOKEN",
+    "HUGGINGFACE_API_KEY",
+    "NEWSAPI_API_KEY",
+    "OPENAI_API_KEY",
+    "SANTIMENT_API_KEY"
+  ]
 
 [functions]
-  directory = ".netlify/functions"
+  directory = "csp_project/project/.netlify/functions"
 
 [[redirects]]
   from = "/api/proxy/*"
   to = "/.netlify/functions/proxy/:splat"
   status = 200
   force = true
-  redirectsOrigin = "config"
+
+[headers]
+  [headers.values]
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-eval'; connect-src 'self' https://api.*; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self';"
