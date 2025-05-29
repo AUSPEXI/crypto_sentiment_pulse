@@ -2,6 +2,13 @@
   base = "csp_project/project"
   command = "npm run build"
   publish = "csp_project/project/dist"
+  environment = [
+    "CRYPTOPANIC_API_TOKEN",
+    "HUGGINGFACE_API_KEY",
+    "NEWSAPI_API_KEY",
+    "OPENAI_API_KEY",
+    "SANTIMENT_API_KEY"
+  ]
 
 [functions]
   directory = "csp_project/project/.netlify/functions"
@@ -13,6 +20,6 @@
   force = true
 
 [[headers]]
-  for = "/*"
+  for = "/*" # Apply CSP to all routes
   [headers.values]
     Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-eval'; connect-src 'self' https://api.*; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self';"
