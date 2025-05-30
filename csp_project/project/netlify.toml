@@ -1,7 +1,14 @@
 [build]
   base = "csp_project/project"
-  command = "npm run build"
+  command = "npm run build -- --logLevel verbose"
   publish = "csp_project/project/dist"
+  environment = [
+    "CRYPTOPANIC_API_TOKEN",
+    "HUGGINGFACE_API_KEY",
+    "NEWSAPI_API_KEY",
+    "OPENAI_API_KEY",
+    "SANTIMENT_API_KEY"
+  ]
 
 [functions]
   directory = "csp_project/project/.netlify/functions"
