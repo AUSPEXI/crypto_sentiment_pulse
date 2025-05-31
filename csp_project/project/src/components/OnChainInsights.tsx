@@ -1,7 +1,19 @@
 // src/components/OnChainInsights.tsx
 import React, { useState, useEffect } from 'react';
+import { Bar } from 'react-chartjs-2';
 import { fetchOnChainData } from '../utils/api';
 import { OnChainData } from '../types';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip as ChartJSTooltip,
+  Legend as ChartJSLegend,
+} from 'chart.js';
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, ChartJSTooltip, ChartJSLegend);
 
 interface OnChainInsightsProps {
   selectedCoins: string[];
@@ -34,7 +46,6 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
         setLoading(false);
       }
     };
-
     if (selectedCoins.length > 0) {
       fetchData();
       const intervalId = setInterval(fetchData, 5 * 60 * 1000);
@@ -89,76 +100,122 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
   const growthRange = getGrowthAxisRange(activeWalletsData);
   const transactionsRange = getTransactionsAxisRange(largeTransactionsData);
 
-  const growthChart = {
-    type: 'bar',
-    data: {
-      labels: activeWalletsData.map(item => item.coin),
-      datasets: [{
+  const growthLabels = activeWalletsData.map(item => item.coin);
+  const growthValues = activeWalletsData.map(item => item.growth);
+
+  const growthChartData = {
+    labels: growthLabels,
+    datasets: [
+      {
         label: 'Growth (%)',
-        data: activeWalletsData.map(item => item.growth),
-        backgroundColor: activeWalletsData.map(item => item.growth >= 0 ? '#22C55E' : '#EF4444'),
-        borderColor: activeWalletsData.map(item => item.growth >= 0 ? '#16A34A' : '#DC2626'),
+        data: growthValues,
+        backgroundColor: growthValues.map(value => (value >= 0 ? '#22c55e' : '#ef4444')),
         borderWidth: 1,
-      }],
-    },
-    options: {
-      indexAxis: 'y',
-      responsive: true,
-      plugins: {
-        legend: { display: false },
-        title: { display: true, text: 'Active Wallet Growth' },
-        tooltip: {
-          callbacks: {
-            label: (context) => `Growth: ${context.raw >= 0 ? '+' : ''}${context.raw.toFixed(2)}%`,
-          },
-        },
+        barThickness: 20,
       },
-      scales: {
-        x: {
-          min: growthRange.min,
-          max: growthRange.max,
-          title: { display: true, text: 'Growth (%)' },
-          ticks: { callback: (value) => `${value}%` },
-        },
-        y: { title: { display: true, text: 'Coin' } },
-      },
-    },
+    ],
   };
 
-  const transactionsChart = {
-    type: 'bar',
-    data: {
-      labels: largeTransactionsData.map(item => item.coin),
-      datasets: [{
-        label: 'Transactions',
-        data: largeTransactionsData.map(item => item.transactions),
-        backgroundColor: '#3B82F6',
-        borderColor: '#2563EB',
-        borderWidth: 1,
-      }],
+  const growthChartOptions = {
+    indexAxis: 'y' as const,
+    scales: {
+      x: {
+        min: growthRange.min,
+        max: growthRange.max,
+        ticks: {
+          callback: (value: number) => `${value}%`,
+        },
+        grid: {
+          display: true,
+          drawBorder: true,
+          drawOnChartArea: true,
+        },
+      },
+      y: {
+        grid: {
+          display: false,
+        },
+      },
     },
-    options: {
-      indexAxis: 'y',
-      responsive: true,
-      plugins: {
-        legend: { display: true },
-        title: { display: true, text: 'Large Transactions' },
-        tooltip: {
-          callbacks: {
-            label: (context) => `Transactions: ${formatNumber(context.raw)}`,
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        callbacks: {
+          label: (context: any) => {
+            const value = context.raw;
+            return `Growth: ${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
           },
         },
       },
-      scales: {
-        x: {
-          min: 0,
-          max: transactionsRange[1],
-          title: { display: true, text: 'Transactions' },
-          ticks: { callback: (value) => formatNumber(value) },
+    },
+    maintainAspectRatio: false,
+  };
+
+  const transactionLabels = largeTransactionsData.map(item => item.coin);
+  const transactionValues = largeTransactionsData.map(item => item.transactions);
+
+  const transactionsChartData = {
+    labels: transactionLabels,
+    datasets: [
+      {
+        label: 'Transactions',
+        data: transactionValues,
+        backgroundColor: '#3b82f6',
+        borderWidth: 1,
+        barThickness: 20,
+      },
+    ],
+  };
+
+  const transactionsChartOptions = {
+    indexAxis: 'y' as const,
+    scales: {
+      x: {
+        min: 0,
+        max: transactionsRange[1],
+        ticks: {
+          callback: (value: number) => formatNumber(value),
         },
-        y: { title: { display: true, text: 'Coin' } },
+        grid: {
+          display: true,
+          drawBorder: true,
+          drawOnChartArea: true,
+        },
+      },
+      y: {
+        grid: {
+          display: false,
+        },
       },
     },
+    plugins: {
+      legend: {
+        display: true,
+        labels: {
+          generateLabels: (chart: any) => {
+            return [{
+              text: 'Transactions',
+              fillStyle: '#3b82f6',
+              strokeStyle: '#3b82f6',
+              lineWidth: 1,
+              hidden: false,
+              datasetIndex: 0,
+            }];
+          },
+        },
+      },
+      tooltip: {
+        callbacks: {
+          label: (context: any) => {
+            const value = context.raw;
+            return `Transactions: ${formatNumber(value)}`;
+          },
+        },
+      },
+    },
+    maintainAspectRatio: false,
   };
 
   if (!selectedCoins.length) {
@@ -183,29 +240,13 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
           <div>
             <h3 className="text-md font-medium text-gray-700 mb-2">Active Wallet Growth</h3>
             <div style={{ height: `${chartHeight}px` }}>
-              {activeWalletsData.length > 0 ? (
-                <div className="chart-container" style={{ position: 'relative', height: `${chartHeight}px`, width: '100%' }}>
-                  <chartjs>
-                    {JSON.stringify(growthChart, null, 2)}
-                  </chartjs>
-                </div>
-              ) : (
-                <p className="text-gray-500">No data available for Active Wallet Growth.</p>
-              )}
+              <Bar data={growthChartData} options={growthChartOptions} />
             </div>
           </div>
           <div>
             <h3 className="text-md font-medium text-gray-700 mb-2">Large Transactions</h3>
             <div style={{ height: `${chartHeight}px` }}>
-              {largeTransactionsData.length > 0 ? (
-                <div className="chart-container" style={{ position: 'relative', height: `${chartHeight}px`, width: '100%' }}>
-                  <chartjs>
-                    {JSON.stringify(transactionsChart, null, 2)}
-                  </chartjs>
-                </div>
-              ) : (
-                <p className="text-gray-500">No data available for Large Transactions.</p>
-              )}
+              <Bar data={transactionsChartData} options={transactionsChartOptions} />
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
