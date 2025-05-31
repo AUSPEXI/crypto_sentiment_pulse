@@ -1,4 +1,4 @@
-// api.ts
+// src/utils/api.ts
 import { NewsData, OnChainData, SentimentData } from './types';
 
 // Fallback data
@@ -19,7 +19,6 @@ export const fetchEvents = async (api: string, endpoint: string, params: Record<
   const maxAttempts = 2;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      // Fixed URL encoding
       const response = await fetch(`/api/proxy?api=${api}&endpoint=${endpoint}&params=${encodeURIComponent(JSON.stringify({ ...params, pageSize: 2 }))}`);
       if (!response.ok) {
         throw new Error(`API request failed with status ${response.status}: ${await response.text()}`);
@@ -27,9 +26,9 @@ export const fetchEvents = async (api: string, endpoint: string, params: Record<
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error(`Proxied request failed for ${api}/${endpoint}:`, error, `Status: ${error.status || 500}`, `Headers: ${JSON.stringify(error.headers || {})}`);
+      console.error(`Proxied request failed for ${api}/${endpoint}:`, error);
       if (attempt === maxAttempts) throw error;
-      await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+      await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
     }
   }
 };
@@ -40,7 +39,7 @@ export const fetchNews = async (asset: string): Promise<NewsData> => {
     const response = await fetchEvents('newsapi', 'top-headlines', {
       q: asset,
       category: 'business',
-      pageSize: 5, // Limit results to reduce timeout risk
+      pageSize: 5,
     });
     const data = response.data.articles || [];
     return {
@@ -60,7 +59,7 @@ export const fetchOnChainData = async (asset: string): Promise<OnChainData> => {
   try {
     const response = await fetchEvents('coingecko', 'simple/price', {
       ids: asset.toLowerCase(),
-      vs_currencies: 'usd', // Required parameter for CoinGecko
+      vs_currencies: 'usd',
     });
     const data = response.data;
     return {
@@ -78,18 +77,16 @@ export const fetchSocialSentiment = async (asset: string): Promise<SentimentData
   try {
     const response = await fetchEvents('reddit', 'r/CryptoCurrency.rss');
     const data = response.data.rss?.channel?.[0]?.item || [];
-    const sentimentScore = analyzeSentiment(data); // Custom sentiment logic
+    const sentimentScore = analyzeSentiment(data);
     return { score: Math.max(-1, Math.min(1, sentimentScore)) };
   } catch (error) {
     console.error(`Error fetching social sentiment for ${asset} from Reddit:`, error);
-    return { score: 0 }; // Fallback to neutral
+    return { score: 0 };
   }
 };
 
 const analyzeSentiment = (data: any): number => {
-  // Custom logic to analyze sentiment from RSS items
-  // Example: Count positive/negative keywords
-  return 0; // Placeholder, replace with actual logic
+  return 0; // Placeholder
 };
 
 export const calculateNewsSentiment = async (news: NewsData[], asset: string): Promise<SentimentData> => {
@@ -104,7 +101,7 @@ export const calculateNewsSentiment = async (news: NewsData[], asset: string): P
     return { score: Math.max(-1, Math.min(1, sentimentScore)) };
   } catch (error) {
     console.error(`Error calculating news sentiment for ${asset}:`, error);
-    return { score: 0 }; // Fallback to neutral sentiment
+    return { score: 0 };
   }
 };
 
@@ -113,13 +110,11 @@ export const fetchSentimentData = async (asset: string): Promise<SentimentData> 
     const news = await fetchNews(asset);
     const newsSentiment = await calculateNewsSentiment([news], asset);
     const socialSentiment = await fetchSocialSentiment(asset);
-    
-    // Combine sentiments (e.g., weighted average)
     const combinedScore = (newsSentiment.score * 0.6 + socialSentiment.score * 0.4);
     return { score: Math.max(-1, Math.min(1, combinedScore)) };
   } catch (error) {
     console.error(`Error fetching sentiment data for ${asset}:`, error);
-    return { score: 0 }; // Fallback to neutral
+    return { score: 0 };
   }
 };
 
