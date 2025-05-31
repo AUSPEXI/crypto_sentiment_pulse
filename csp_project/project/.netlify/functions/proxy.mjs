@@ -1,7 +1,7 @@
 // netlify/functions/proxy.mjs
-import { Handler, HandlerEvent, HandlerContext } from '@netlify/functions';
+import { Handler } from '@netlify/functions';
 
-const handler: Handler = async (event: HandlerEvent, context: HandlerContext) => {
+const handler = async (event, context) => {
   const { queryStringParameters, httpMethod } = event;
   const api = queryStringParameters?.api;
   const endpoint = queryStringParameters?.endpoint;
@@ -19,7 +19,7 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
   try {
     const url = baseUrl ? `${baseUrl}/${endpoint}` : `https://api.${api}.com/${endpoint}`;
     const response = await fetch(url, {
-      method: httpMethod, // Support both GET and POST
+      method: httpMethod,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${process.env[api.toUpperCase() + '_API_KEY'] || ''}`,
