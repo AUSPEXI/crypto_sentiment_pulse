@@ -1,6 +1,6 @@
 [build]
   base = "csp_project/project"
-  command = "npm run build"
+  command = "npm run build -- --logLevel verbose"
   publish = "csp_project/project/dist"
 
 [functions]
