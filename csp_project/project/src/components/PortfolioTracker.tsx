@@ -3,7 +3,10 @@ import { fetchSentimentData } from '../utils/api';
 import { PortfolioItem } from '../types';
 import { Trash2 } from 'lucide-react';
 
-const DEFAULT_COINS = ['BTC', 'ETH', 'SOL'];
+const DEFAULT_COINS = [
+  'BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'USDC', 'DOGE', 'ADA', 'TRX', 'AVAX',
+  'XRP', 'LTC', 'BCH', 'DOT', 'LINK', 'MATIC', 'XLM', 'ATOM', 'CRO', 'ALGO'
+];
 
 const PortfolioTracker: React.FC = () => {
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
