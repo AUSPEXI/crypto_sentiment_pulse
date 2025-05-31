@@ -1,29 +1,30 @@
 // src/utils/api.ts
 import axios from 'axios';
 import { XMLParser } from 'fast-xml-parser';
+import { Event, OnChainData, SentimentData } from '../types';
 
 // Define supported coins
 const SUPPORTED_COINS = {
   BTC: { symbol: 'BTC', coinMetrics: 'btc' },
   ETH: { symbol: 'ETH', coinMetrics: 'eth' },
   USDT: { symbol: 'USDT', coinMetrics: 'usdt' },
-  SOL: { symbol: 'SOL', coinMetrics: 'sol' },
   BNB: { symbol: 'BNB', coinMetrics: 'bnb' },
+  SOL: { symbol: 'SOL', coinMetrics: 'sol' },
+  USDC: { symbol: 'USDC', coinMetrics: 'usdc' },
   XRP: { symbol: 'XRP', coinMetrics: 'xrp' },
-  ADA: { symbol: 'ADA', coinMetrics: 'ada' },
-  DOT: { symbol: 'DOT', coinMetrics: 'dot' },
-  LINK: { symbol: 'LINK', coinMetrics: 'link' },
   DOGE: { symbol: 'DOGE', coinMetrics: 'doge' },
-  SHIB: { symbol: 'SHIB', coinMetrics: 'shib' },
-  LTC: { symbol: 'LTC', coinMetrics: 'ltc' },
-  XLM: { symbol: 'XLM', coinMetrics: 'xlm' },
-  AVAX: { symbol: 'AVAX', coinMetrics: 'avax' },
-  MATIC: { symbol: 'MATIC', coinMetrics: 'matic' },
+  TON: { symbol: 'TON', coinMetrics: 'ton' },
+  ADA: { symbol: 'ADA', coinMetrics: 'ada' },
   TRX: { symbol: 'TRX', coinMetrics: 'trx' },
-  ATOM: { symbol: 'ATOM', coinMetrics: 'atom' },
+  AVAX: { symbol: 'AVAX', coinMetrics: 'avax' },
+  SHIB: { symbol: 'SHIB', coinMetrics: 'shib' },
+  LINK: { symbol: 'LINK', coinMetrics: 'link' },
+  BCH: { symbol: 'BCH', coinMetrics: 'bch' },
+  DOT: { symbol: 'DOT', coinMetrics: 'dot' },
   NEAR: { symbol: 'NEAR', coinMetrics: 'near' },
-  ALGO: { symbol: 'ALGO', coinMetrics: 'algo' },
-  VET: { symbol: 'VET', coinMetrics: 'vet' },
+  LTC: { symbol: 'LTC', coinMetrics: 'ltc' },
+  MATIC: { symbol: 'MATIC', coinMetrics: 'matic' },
+  PEPE: { symbol: 'PEPE', coinMetrics: 'pepe' },
 };
 
 export const STATIC_COINS = Object.keys(SUPPORTED_COINS);
@@ -32,46 +33,46 @@ const STATIC_WALLET_DATA = {
   BTC: { coin: 'BTC', activeWallets: 100000, activeWalletsGrowth: 2.1, largeTransactions: 500, timestamp: new Date().toISOString() },
   ETH: { coin: 'ETH', activeWallets: 75000, activeWalletsGrowth: 1.5, largeTransactions: 400, timestamp: new Date().toISOString() },
   USDT: { coin: 'USDT', activeWallets: 20000, activeWalletsGrowth: 0.2, largeTransactions: 600, timestamp: new Date().toISOString() },
-  SOL: { coin: 'SOL', activeWallets: 50000, activeWalletsGrowth: 1.8, largeTransactions: 300, timestamp: new Date().toISOString() },
   BNB: { coin: 'BNB', activeWallets: 40000, activeWalletsGrowth: 1.2, largeTransactions: 350, timestamp: new Date().toISOString() },
+  SOL: { coin: 'SOL', activeWallets: 50000, activeWalletsGrowth: 1.8, largeTransactions: 300, timestamp: new Date().toISOString() },
+  USDC: { coin: 'USDC', activeWallets: 18000, activeWalletsGrowth: 0.3, largeTransactions: 550, timestamp: new Date().toISOString() },
   XRP: { coin: 'XRP', activeWallets: 30000, activeWalletsGrowth: 0.8, largeTransactions: 200, timestamp: new Date().toISOString() },
-  ADA: { coin: 'ADA', activeWallets: 35000, activeWalletsGrowth: 1.0, largeTransactions: 250, timestamp: new Date().toISOString() },
-  DOT: { coin: 'DOT', activeWallets: 25000, activeWalletsGrowth: 0.9, largeTransactions: 150, timestamp: new Date().toISOString() },
-  LINK: { coin: 'LINK', activeWallets: 20000, activeWalletsGrowth: 0.7, largeTransactions: 180, timestamp: new Date().toISOString() },
   DOGE: { coin: 'DOGE', activeWallets: 60000, activeWalletsGrowth: 2.0, largeTransactions: 100, timestamp: new Date().toISOString() },
-  SHIB: { coin: 'SHIB', activeWallets: 80000, activeWalletsGrowth: 2.5, largeTransactions: 50, timestamp: new Date().toISOString() },
-  LTC: { coin: 'LTC', activeWallets: 28000, activeWalletsGrowth: 0.6, largeTransactions: 220, timestamp: new Date().toISOString() },
-  XLM: { coin: 'XLM', activeWallets: 22000, activeWalletsGrowth: 0.5, largeTransactions: 170, timestamp: new Date().toISOString() },
-  AVAX: { coin: 'AVAX', activeWallets: 32000, activeWalletsGrowth: 1.1, largeTransactions: 280, timestamp: new Date().toISOString() },
-  MATIC: { coin: 'MATIC', activeWallets: 31000, activeWalletsGrowth: 0.9, largeTransactions: 260, timestamp: new Date().toISOString() },
+  TON: { coin: 'TON', activeWallets: 25000, activeWalletsGrowth: 0.9, largeTransactions: 150, timestamp: new Date().toISOString() },
+  ADA: { coin: 'ADA', activeWallets: 35000, activeWalletsGrowth: 1.0, largeTransactions: 250, timestamp: new Date().toISOString() },
   TRX: { coin: 'TRX', activeWallets: 29000, activeWalletsGrowth: 0.7, largeTransactions: 190, timestamp: new Date().toISOString() },
-  ATOM: { coin: 'ATOM', activeWallets: 27000, activeWalletsGrowth: 0.8, largeTransactions: 210, timestamp: new Date().toISOString() },
+  AVAX: { coin: 'AVAX', activeWallets: 32000, activeWalletsGrowth: 1.1, largeTransactions: 280, timestamp: new Date().toISOString() },
+  SHIB: { coin: 'SHIB', activeWallets: 80000, activeWalletsGrowth: 2.5, largeTransactions: 50, timestamp: new Date().toISOString() },
+  LINK: { coin: 'LINK', activeWallets: 20000, activeWalletsGrowth: 0.7, largeTransactions: 180, timestamp: new Date().toISOString() },
+  BCH: { coin: 'BCH', activeWallets: 27000, activeWalletsGrowth: 0.6, largeTransactions: 220, timestamp: new Date().toISOString() },
+  DOT: { coin: 'DOT', activeWallets: 23000, activeWalletsGrowth: 0.9, largeTransactions: 160, timestamp: new Date().toISOString() },
   NEAR: { coin: 'NEAR', activeWallets: 26000, activeWalletsGrowth: 1.0, largeTransactions: 230, timestamp: new Date().toISOString() },
-  ALGO: { coin: 'ALGO', activeWallets: 24000, activeWalletsGrowth: 0.6, largeTransactions: 160, timestamp: new Date().toISOString() },
-  VET: { coin: 'VET', activeWallets: 23000, activeWalletsGrowth: 0.5, largeTransactions: 140, timestamp: new Date().toISOString() },
+  LTC: { coin: 'LTC', activeWallets: 28000, activeWalletsGrowth: 0.6, largeTransactions: 220, timestamp: new Date().toISOString() },
+  MATIC: { coin: 'MATIC', activeWallets: 31000, activeWalletsGrowth: 0.9, largeTransactions: 260, timestamp: new Date().toISOString() },
+  PEPE: { coin: 'PEPE', activeWallets: 70000, activeWalletsGrowth: 2.2, largeTransactions: 80, timestamp: new Date().toISOString() },
 };
 
 const STATIC_PRICE_CHANGES = {
   BTC: 1.02,
   ETH: 0.78,
   USDT: 0.84,
-  SOL: 0.90,
   BNB: 0.95,
+  SOL: 0.90,
+  USDC: 0.82,
   XRP: 0.88,
-  ADA: 0.92,
-  DOT: 0.87,
-  LINK: 0.91,
   DOGE: 1.05,
-  SHIB: 1.10,
-  LTC: 0.85,
-  XLM: 0.83,
-  AVAX: 0.96,
-  MATIC: 0.89,
+  TON: 0.87,
+  ADA: 0.92,
   TRX: 0.82,
-  ATOM: 0.86,
+  AVAX: 0.96,
+  SHIB: 1.10,
+  LINK: 0.91,
+  BCH: 0.85,
+  DOT: 0.87,
   NEAR: 0.94,
-  ALGO: 0.81,
-  VET: 0.80,
+  LTC: 0.85,
+  MATIC: 0.89,
+  PEPE: 1.08,
 };
 
 export const STATIC_NEWS: { [key: string]: Event[] } = {
@@ -86,80 +87,58 @@ export const STATIC_NEWS: { [key: string]: Event[] } = {
   USDT: [
     { title: "USDT volume up", description: "Tether transactions increase.", url: "", publishedAt: new Date().toISOString() },
   ],
+  BNB: [
+    { title: "BNB chain update", description: "Binance Smart Chain improves.", url: "", publishedAt: new Date().toISOString() },
+  ],
   SOL: [
     { title: "SOL ecosystem grows", description: "Solana projects expand.", url: "", publishedAt: new Date().toISOString() },
   ],
-  BNB: [
-    { title: "BNB chain update", description: "Binance Smart Chain improves.", url: "", publishedAt: new Date().toISOString() },
+  USDC: [
+    { title: "USDC adoption rises", description: "USDC usage increases.", url: "", publishedAt: new Date().toISOString() },
   ],
   XRP: [
     { title: "XRP lawsuit news", description: "Ripple faces legal challenges.", url: "", publishedAt: new Date().toISOString() },
   ],
-  ADA: [
-    { title: "ADA staking grows", description: "Cardano staking increases.", url: "", publishedAt: new Date().toISOString() },
-  ],
-  DOT: [
-    { title: "DOT parachain launch", description: "Polkadot launches new parachain.", url: "", publishedAt: new Date().toISOString() },
-  ],
-  LINK: [
-    { title: "LINK oracles expand", description: "Chainlink oracles grow.", url: "", publishedAt: new Date().toISOString() },
-  ],
   DOGE: [
     { title: "DOGE price surge", description: "Dogecoin gains popularity.", url: "", publishedAt: new Date().toISOString() },
   ],
-  SHIB: [
-    { title: "SHIB community grows", description: "Shiba Inu community expands.", url: "", publishedAt: new Date().toISOString() },
+  TON: [
+    { title: "TON network growth", description: "TON ecosystem expands.", url: "", publishedAt: new Date().toISOString() },
   ],
-  LTC: [
-    { title: "LTC adoption rises", description: "Litecoin usage increases.", url: "", publishedAt: new Date().toISOString() },
-  ],
-  XLM: [
-    { title: "XLM partners grow", description: "Stellar partnerships expand.", url: "", publishedAt: new Date().toISOString() },
-  ],
-  AVAX: [
-    { title: "AVAX defi boom", description: "Avalanche DeFi projects grow.", url: "", publishedAt: new Date().toISOString() },
-  ],
-  MATIC: [
-    { title: "MATIC scaling news", description: "Polygon enhances scaling.", url: "", publishedAt: new Date().toISOString() },
+  ADA: [
+    { title: "ADA staking grows", description: "Cardano staking increases.", url: "", publishedAt: new Date().toISOString() },
   ],
   TRX: [
     { title: "TRX dapp growth", description: "TRON dapps increase.", url: "", publishedAt: new Date().toISOString() },
   ],
-  ATOM: [
-    { title: "ATOM interoperability", description: "Cosmos improves interoperability.", url: "", publishedAt: new Date().toISOString() },
+  AVAX: [
+    { title: "AVAX defi boom", description: "Avalanche DeFi projects grow.", url: "", publishedAt: new Date().toISOString() },
+  ],
+  SHIB: [
+    { title: "SHIB community grows", description: "Shiba Inu community expands.", url: "", publishedAt: new Date().toISOString() },
+  ],
+  LINK: [
+    { title: "LINK oracles expand", description: "Chainlink oracles grow.", url: "", publishedAt: new Date().toISOString() },
+  ],
+  BCH: [
+    { title: "BCH adoption rises", description: "Bitcoin Cash usage increases.", url: "", publishedAt: new Date().toISOString() },
+  ],
+  DOT: [
+    { title: "DOT parachain launch", description: "Polkadot launches new parachain.", url: "", publishedAt: new Date().toISOString() },
   ],
   NEAR: [
     { title: "NEAR protocol update", description: "NEAR Protocol enhances features.", url: "", publishedAt: new Date().toISOString() },
   ],
-  ALGO: [
-    { title: "ALGO green tech", description: "Algorand focuses on sustainability.", url: "", publishedAt: new Date().toISOString() },
+  LTC: [
+    { title: "LTC adoption rises", description: "Litecoin usage increases.", url: "", publishedAt: new Date().toISOString() },
   ],
-  VET: [
-    { title: "VET supply chain news", description: "VeChain improves supply chain.", url: "", publishedAt: new Date().toISOString() },
+  MATIC: [
+    { title: "MATIC scaling news", description: "Polygon enhances scaling.", url: "", publishedAt: new Date().toISOString() },
+  ],
+  PEPE: [
+    { title: "PEPE meme coin surge", description: "Pepe gains traction.", url: "", publishedAt: new Date().toISOString() },
   ],
 };
-
-interface OnChainData {
-  coin: string;
-  activeWallets: number;
-  activeWalletsGrowth: number;
-  largeTransactions: number;
-  timestamp: string;
-}
-
-interface SentimentData {
-  coin: string;
-  score: number;
-  socialScore: number;
-  timestamp: string;
-}
-
-export interface Event {
-  title: string;
-  description: string;
-  url: string;
-  publishedAt: string;
-}
 
 // Rate limit handling
 let lastNewsApiRequestTime: number | null = null;
