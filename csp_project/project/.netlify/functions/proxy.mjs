@@ -1,7 +1,4 @@
 // .netlify/functions/proxy.mjs
-// Import types only if using TypeScript; otherwise, we can omit since we're in .mjs
-import type { HandlerEvent, HandlerResponse } from '@netlify/functions';
-
 export const handler = async (event, context) => {
   const { queryStringParameters, httpMethod } = event;
   const api = queryStringParameters?.api;
