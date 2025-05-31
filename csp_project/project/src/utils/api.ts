@@ -27,7 +27,7 @@ export const fetchEvents = async (api: string, endpoint: string, params: Record<
       if (contentType && contentType.includes('application/json')) {
         const data = await response.json();
         return data;
-      } else if (contentType && contentType.includes('application/xml') || contentType?.includes('text/xml')) {
+      } else if (contentType && (contentType.includes('application/xml') || contentType.includes('text/xml'))) {
         const text = await response.text();
         return { data: text }; // Pass raw XML for parsing
       }
@@ -119,4 +119,27 @@ export const calculateNewsSentiment = async (news: NewsData[], asset: string): P
     console.error(`Error calculating news sentiment for ${asset}:`, error);
     return { score: 0 }; // Fallback to neutral sentiment
   }
+};
+
+// Add fetchSentimentData to aggregate news and social sentiment
+export const fetchSentimentData = async (asset: string): Promise<SentimentData> => {
+  try {
+    const news = await fetchNews(asset);
+    const newsSentiment = await calculateNewsSentiment([news], asset);
+    const socialSentiment = await fetchSocialSentiment(asset);
+    
+    // Combine sentiments (e.g., weighted average)
+    const combinedScore = (newsSentiment.score * 0.6 + socialSentiment.score * 0.4);
+    return { score: Math.max(-1, Math.min(1, combinedScore)) };
+  } catch (error) {
+    console.error(`Error fetching sentiment data for ${asset}:`, error);
+    return { score: 0 }; // Fallback to neutral
+  }
+};
+
+// Static price changes (used by SentimentSnapshot.tsx)
+export const STATIC_PRICE_CHANGES: Record<string, number> = {
+  BTC: 2.5,
+  ETH: -1.3,
+  USDT: 0.1,
 };
