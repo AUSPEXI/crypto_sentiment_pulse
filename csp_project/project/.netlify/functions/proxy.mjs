@@ -29,10 +29,10 @@ export const handler = async (event, context) => {
       throw new Error(`API request failed with status ${response.status}: ${await response.text()}`);
     }
 
-    const data = await response.text(); // Return raw text for XML
+    const data = await response.text(); // Return raw text for XML or JSON
     return {
       statusCode: 200,
-      body: data, // Return raw response
+      body: data,
       headers: { 'Content-Type': response.headers.get('content-type') || 'application/json' },
     };
   } catch (error) {
