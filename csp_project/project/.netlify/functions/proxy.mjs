@@ -1,4 +1,6 @@
-// netlify/functions/proxy.mjs
+// .netlify/functions/proxy.mjs
+import { Handler, HandlerEvent, HandlerContext } from '@netlify/functions';
+
 export const handler = async (event, context) => {
   const { queryStringParameters, httpMethod } = event;
   const api = queryStringParameters?.api;
@@ -55,12 +57,11 @@ export const handler = async (event, context) => {
     const contentType = response.headers.get('content-type');
     let data;
     if (contentType && (contentType.includes('application/xml') || contentType.includes('text/xml'))) {
-      const xml2js = await import('xml2js');
+      const { parseStringPromise } = await import('xml2js');
       const xml = await response.text();
-      const parsed = await xml2js.parseStringPromise(xml);
-      data = parsed;
+      data = await parseStringPromise(xml);
     } else {
-      data = await response.json(); // Parse as JSON instead of text
+      data = await response.json();
     }
 
     return {
