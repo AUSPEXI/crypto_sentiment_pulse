@@ -1,7 +1,8 @@
+// netlify/functions/proxy.mjs
 import { Handler, HandlerEvent, HandlerContext } from '@netlify/functions';
 
 const handler: Handler = async (event: HandlerEvent, context: HandlerContext) => {
-  const { queryStringParameters } = event;
+  const { queryStringParameters, httpMethod } = event;
   const api = queryStringParameters?.api;
   const endpoint = queryStringParameters?.endpoint;
   const params = queryStringParameters?.params ? JSON.parse(queryStringParameters.params) : {};
@@ -11,22 +12,23 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
     return {
       statusCode: 400,
       body: JSON.stringify({ error: 'Missing api or endpoint parameter' }),
+      headers: { 'Content-Type': 'application/json' },
     };
   }
 
   try {
     const url = baseUrl ? `${baseUrl}/${endpoint}` : `https://api.${api}.com/${endpoint}`;
     const response = await fetch(url, {
-      method: 'GET',
+      method: httpMethod, // Support both GET and POST
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${process.env[api.toUpperCase() + '_API_KEY'] || ''}`,
       },
-      body: params ? JSON.stringify(params) : undefined,
+      body: httpMethod === 'POST' ? JSON.stringify(params) : undefined,
     });
 
     if (!response.ok) {
-      throw new Error(`API request failed with status ${response.status}`);
+      throw new Error(`API request failed with status ${response.status}: ${await response.text()}`);
     }
 
     const data = await response.json();
@@ -40,6 +42,7 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
     return {
       statusCode: 500,
       body: JSON.stringify({ error: error.message }),
+      headers: { 'Content-Type': 'application/json' },
     };
   }
 };
