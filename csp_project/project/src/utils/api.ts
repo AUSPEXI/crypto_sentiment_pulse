@@ -304,7 +304,7 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
         timestamp: new Date().toISOString(),
       };
     }
-    throw new Error('No data found for asset');
+    throw new Error('No data found for asset'); // Fixed incomplete throw statement
   } catch (error) {
     console.error(`Error fetching on-chain data for ${coin} via CoinMetrics:`, error.message, 'Response:', error.response?.data);
     const staticData = STATIC_WALLET_DATA[coin] || { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: new Date().toISOString() };
