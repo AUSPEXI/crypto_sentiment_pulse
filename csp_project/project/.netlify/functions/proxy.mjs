@@ -1,7 +1,5 @@
 // netlify/functions/proxy.mjs
-import { handler as createHandler } from '@netlify/functions';
-
-const myHandler = async (event, context) => {
+export const handler = async (event, context) => {
   const { queryStringParameters, httpMethod } = event;
   const api = queryStringParameters?.api;
   const endpoint = queryStringParameters?.endpoint;
@@ -46,5 +44,3 @@ const myHandler = async (event, context) => {
     };
   }
 };
-
-export const handler = createHandler(myHandler);
