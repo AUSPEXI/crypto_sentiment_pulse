@@ -3,8 +3,7 @@ export const handler = async (event, context) => {
   const { queryStringParameters, httpMethod } = event;
   const api = queryStringParameters?.api;
   const endpoint = queryStringParameters?.endpoint;
-  const params = queryStringParameters?.params ? JSON.parse(queryStringParameters.params) : {};
-  const baseUrl = queryStringParameters?.baseUrl;
+  const params = queryStringParameters?.params ? JSON.parse(decodeURIComponent(queryStringParameters.params)) : {};
 
   if (!api || !endpoint) {
     return {
@@ -15,13 +14,37 @@ export const handler = async (event, context) => {
   }
 
   try {
-    const url = baseUrl ? `${baseUrl}/${endpoint}` : `https://api.${api}.com/${endpoint}`;
+    // Define base URLs for each API
+    let baseUrl;
+    switch (api) {
+      case 'coingecko':
+        baseUrl = 'https://api.coingecko.com/api/v3';
+        break;
+      case 'newsapi':
+        baseUrl = 'https://newsapi.org/v2';
+        break;
+      case 'openai':
+        baseUrl = 'https://api.openai.com';
+        break;
+      case 'reddit':
+        baseUrl = 'https://www.reddit.com';
+        break;
+      default:
+        baseUrl = `https://api.${api}.com`;
+    }
+
+    const url = `${baseUrl}/${endpoint}`;
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${process.env[api.toUpperCase() + '_API_KEY'] || ''}`,
+    };
+    if (api === 'reddit') {
+      headers['User-Agent'] = 'CryptoSentimentPulse/1.0 (by /u/YourRedditUsername)';
+    }
+
     const response = await fetch(url, {
       method: httpMethod,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env[api.toUpperCase() + '_API_KEY'] || ''}`,
-      },
+      headers,
       body: httpMethod === 'POST' ? JSON.stringify(params) : undefined,
     });
 
@@ -37,12 +60,12 @@ export const handler = async (event, context) => {
       const parsed = await xml2js.parseStringPromise(xml);
       data = parsed;
     } else {
-      data = await response.text(); // Fallback to text for JSON or other types
+      data = await response.json(); // Parse as JSON instead of text
     }
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ data }), // Always return JSON
+      body: JSON.stringify({ data }),
       headers: { 'Content-Type': 'application/json' },
     };
   } catch (error) {
