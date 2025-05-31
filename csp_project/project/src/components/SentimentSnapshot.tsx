@@ -16,11 +16,11 @@ const SentimentSnapshot: React.FC<SentimentSnapshotProps> = ({ selectedCoins }) 
   const coinsToFetch = selectedCoins.length > 0 ? selectedCoins : defaultCoins;
 
   // Timeout wrapper for promises
-  const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number) => {
-    const timeout = new Promise<T>((_, reject) => {
+  const withTimeout = async (promise: Promise<any>, timeoutMs: number) => {
+    const timeout = new Promise((_, reject) => {
       setTimeout(() => reject(new Error('Request timed out')), timeoutMs);
     });
-    return Promise.race([promise, timeout]);
+    return Promise.race([promise, timeout]) as Promise<any>;
   };
 
   useEffect(() => {
