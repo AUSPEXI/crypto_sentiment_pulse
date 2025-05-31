@@ -29,11 +29,21 @@ export const handler = async (event, context) => {
       throw new Error(`API request failed with status ${response.status}: ${await response.text()}`);
     }
 
-    const data = await response.text(); // Return raw text for XML or JSON
+    const contentType = response.headers.get('content-type');
+    let data;
+    if (contentType && (contentType.includes('application/xml') || contentType.includes('text/xml'))) {
+      const xml2js = await import('xml2js');
+      const xml = await response.text();
+      const parsed = await xml2js.parseStringPromise(xml);
+      data = parsed;
+    } else {
+      data = await response.text(); // Fallback to text for JSON or other types
+    }
+
     return {
       statusCode: 200,
-      body: data,
-      headers: { 'Content-Type': response.headers.get('content-type') || 'application/json' },
+      body: JSON.stringify({ data }), // Always return JSON
+      headers: { 'Content-Type': 'application/json' },
     };
   } catch (error) {
     console.error('Proxy error:', error);
