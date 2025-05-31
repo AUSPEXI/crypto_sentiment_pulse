@@ -76,8 +76,11 @@ const STATIC_PRICE_CHANGES = {
 
 export const STATIC_NEWS: { [key: string]: Event[] } = {
   BTC: [
-    { title: "BTC price steady", description: "Bitcoin remains stable.", url: "", publishedAt: new Date().toISOString() },
-    { title: "BTC adoption grows", description: "More merchants accept BTC.", url: "", publishedAt: new Date().toISOString() },
+    { title: "El Salvador’s Bitcoin Holdings Show $357 Million in Unrealized Profit As Bitcoin Closes At Record Highs", description: "El Salvador’s bold foray into BTC (CRYPTO: BTC) has entered a new chapter of profitability.", url: "", publishedAt: new Date().toISOString() },
+    { title: "XRP-BTC Pair Flashes First Golden Cross, Hinting at Major Bull Run for XRP", description: "No description", url: "", publishedAt: new Date().toISOString() },
+    { title: "Peter Schiff Predicts ‘Fireworks,’ Says Michael Saylor’s Strategy Will See Unrealized Loss During Bitcoin’s Next Bearish Dip", description: "Economist and market commentator Peter Schiff projected Monday that the next Bitcoin (CRYPTO: BTC) pullback would trigger an unrealized loss for Michael...", url: "", publishedAt: new Date().toISOString() },
+    { title: "Wall Street’s New Bitcoin Monster: Cantor’s $46B Bet Could Dethrone Michael Saylor", description: "Backed by Tether and SoftBank, Twenty One Capital is coming for Strategy’s crypto crown — and it’s not playing small.", url: "", publishedAt: new Date().toISOString() },
+    { title: "Bitcoin price holds above $102,000 as BlackRock leads fund inflows", description: "Bitcoin traded relatively flat on Thursday as institutional investors resumed allocations into US-based spot bitcoin exchange-traded funds on Wednesday.", url: "", publishedAt: new Date().toISOString() },
   ],
   ETH: [
     { title: "ETH network update", description: "Ethereum upgrade incoming.", url: "", publishedAt: new Date().toISOString() },
@@ -139,16 +142,18 @@ export const STATIC_NEWS: { [key: string]: Event[] } = {
   ],
 };
 
-// Rate limit handling
+// Rate limit handling with retry logic
 let lastNewsApiRequestTime: number | null = null;
 const NEWS_API_RATE_LIMIT_MS = 60 * 60 * 1000; // 1 hour delay for 429
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 5000; // Initial delay of 5 seconds, doubles on each retry
 
-const makeProxiedRequest = async (api: string, endpoint: string, params: any, method: 'GET' | 'POST' = 'GET') => {
+const makeProxiedRequest = async (api: string, endpoint: string, params: any, method: 'GET' | 'POST' = 'GET', retries = 0): Promise<any> => {
   if (api === 'newsapi' && lastNewsApiRequestTime) {
     const timeSinceLastRequest = Date.now() - lastNewsApiRequestTime;
     if (timeSinceLastRequest < NEWS_API_RATE_LIMIT_MS) {
       console.log(`Rate limit active for NewsAPI. Delaying request by ${NEWS_API_RATE_LIMIT_MS - timeSinceLastRequest}ms`);
-      throw new Error('NewsAPI rate limit active');
+      await new Promise(resolve => setTimeout(resolve, NEWS_API_RATE_LIMIT_MS - timeSinceLastRequest));
     }
   }
 
@@ -171,8 +176,14 @@ const makeProxiedRequest = async (api: string, endpoint: string, params: any, me
       lastNewsApiRequestTime = Date.now();
     }
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     console.error(`Proxied request failed for ${api}/${endpoint}:`, error.response?.data || error.message, 'Status:', error.response?.status, 'Headers:', error.response?.headers);
+    if (error.response?.status === 429 && retries < MAX_RETRIES) {
+      const delay = RETRY_DELAY_MS * Math.pow(2, retries);
+      console.log(`Retrying ${api}/${endpoint} after ${delay}ms (attempt ${retries + 1}/${MAX_RETRIES})`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return makeProxiedRequest(api, endpoint, params, method, retries + 1);
+    }
     throw new Error(`Proxied request failed: ${error.response?.status || error.message}`);
   }
 };
@@ -191,7 +202,6 @@ const fetchRecentNews = async (coin: string): Promise<string> => {
   }
 };
 
-// New function to fetch general cryptocurrency news
 const fetchGeneralCryptoNews = async (): Promise<Event[]> => {
   console.log('Fetching general cryptocurrency news via proxy');
   const params = { q: 'cryptocurrency OR blockchain OR bitcoin OR ethereum -inurl:(signup OR login)', language: 'en', pageSize: 5 };
@@ -224,7 +234,6 @@ export const fetchEvents = async (coin: string = 'BTC'): Promise<Event[]> => {
     return fetchGeneralCryptoNews();
   }
 
-  // Try coin-specific news first
   const params = {
     q: `${coin} OR ${coinInfo.symbol} cryptocurrency OR blockchain`,
     language: 'en',
@@ -235,7 +244,6 @@ export const fetchEvents = async (coin: string = 'BTC'): Promise<Event[]> => {
     const data = await makeProxiedRequest('newsapi', 'top-headlines', params);
     const articles = data.articles || [];
     
-    // Filter for relevance: ensure the coin or crypto terms are mentioned
     const relevantArticles = articles.filter((article: any) => {
       const text = `${article.title} ${article.description}`.toLowerCase();
       return (
@@ -246,7 +254,6 @@ export const fetchEvents = async (coin: string = 'BTC'): Promise<Event[]> => {
       );
     });
 
-    // Require at least 2 relevant articles to consider the query successful
     if (relevantArticles.length >= 2) {
       return relevantArticles.map((article: any) => ({
         title: article.title,
@@ -256,22 +263,10 @@ export const fetchEvents = async (coin: string = 'BTC'): Promise<Event[]> => {
       }));
     }
 
-    console.log(`Insufficient relevant news for ${coin} (${relevantArticles.length} articles), falling back to general crypto news`);
-    return fetchGeneralCryptoNews();
+    console.log(`Insufficient relevant news for ${coin} (${relevantArticles.length} articles), falling back to static news`);
+    return STATIC_NEWS[coin] || [];
   } catch (error) {
     console.error(`Error fetching events for ${coin}:`, error.message);
-    
-    // Fallback to general crypto news if API call fails
-    try {
-      const generalNews = await fetchGeneralCryptoNews();
-      if (generalNews.length > 0) {
-        return generalNews;
-      }
-    } catch (generalError) {
-      console.error('Error fetching general crypto news as fallback:', generalError.message);
-    }
-    
-    // Final fallback to static news
     return STATIC_NEWS[coin] || [];
   }
 };
@@ -292,8 +287,6 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
     };
     console.log(`CoinMetrics request params for ${coin}:`, params);
     const data = await makeProxiedRequest('coinmetrics', 'timeseries/asset-metrics', params);
-    console.log(`CoinMetrics raw response for ${coin}:`, data);
-
     const assetData = data.data?.[0];
     if (assetData) {
       return {
@@ -304,7 +297,7 @@ export const fetchOnChainData = async (coin: string): Promise<OnChainData> => {
         timestamp: new Date().toISOString(),
       };
     }
-    throw new Error('No data found for asset'); // Fixed incomplete throw statement
+    throw new Error('No data found for asset');
   } catch (error) {
     console.error(`Error fetching on-chain data for ${coin} via CoinMetrics:`, error.message, 'Response:', error.response?.data);
     const staticData = STATIC_WALLET_DATA[coin] || { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: new Date().toISOString() };
@@ -319,9 +312,7 @@ const fetchSocialSentiment = async (coin: string): Promise<number> => {
   try {
     const params = {};
     const data = await makeProxiedRequest('reddit', 'r/CryptoCurrency.rss', params);
-    console.log(`Reddit raw response for ${coin}:`, data);
     const xmlData = parser.parse(data);
-    console.log(`Parsed XML data for ${coin}:`, xmlData);
 
     const items = xmlData.feed?.entry || [];
     const coinRegex = new RegExp(`${coin}`, 'i');
