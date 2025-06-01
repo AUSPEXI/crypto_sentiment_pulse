@@ -22,12 +22,16 @@ const EventAlerts: React.FC<EventAlertsProps> = ({ coin }) => {
           return;
         }
         const fetchedEvents = await fetchNews(coin);
-        console.log('Fetched events:', fetchedEvents); // Debug log
-        setEvents(Array.isArray(fetchedEvents.articles) ? fetchedEvents.articles : []);
+        console.log('Fetched events structure:', fetchedEvents); // Debug log
+        if (!fetchedEvents || !Array.isArray(fetchedEvents.articles)) {
+          throw new Error('Invalid event data structure');
+        }
+        setEvents(fetchedEvents.articles);
       } catch (err) {
         console.error(`Error fetching events for ${coin}:`, err.message);
         setError('Failed to load events. Showing static data.');
-        setEvents(STATIC_NEWS[coin]?.articles || []);
+        const fallbackArticles = STATIC_NEWS[coin]?.articles || STATIC_NEWS['BTC'].articles || [];
+        setEvents(fallbackArticles);
       } finally {
         setLoading(false);
       }
@@ -46,7 +50,7 @@ const EventAlerts: React.FC<EventAlertsProps> = ({ coin }) => {
         <ul className="space-y-2">
           {events.map((event, index) => (
             <li key={index} className="border p-2 rounded">
-              <a href={event.url} target="_blank" rel="noopener noreferrer" className="text-blue-500">
+              <a href={event.url || '#'} target="_blank" rel="noopener noreferrer" className="text-blue-500">
                 {event.title}
               </a>
               <p>{event.description}</p>
