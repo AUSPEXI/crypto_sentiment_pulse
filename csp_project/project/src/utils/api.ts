@@ -1,18 +1,145 @@
 // src/utils/api.ts
-import { NewsData, OnChainData, SentimentData } from './types';
+import { NewsData, OnChainData, SentimentData, Event } from './types';
 
 // Fallback data
-const defaultNewsData: NewsData = { articles: [] };
-const fallbackNewsData: Record<string, NewsData> = {
-  BTC: { articles: [{ title: 'Fallback BTC News', description: 'No data', url: '#' }] },
-  ETH: { articles: [{ title: 'Fallback ETH News', description: 'No data', url: '#' }] },
-  USDT: { articles: [{ title: 'Fallback USDT News', description: 'No data', url: '#' }] },
+const defaultNewsData: NewsData = {
+  articles: [],
 };
-const defaultOnChainData: OnChainData = { price: 0, marketCap: 0, volume: 0 };
+const fallbackNewsData: Record<string, NewsData> = {
+  BTC: {
+    articles: [
+      {
+        title: 'BTC Market Surge',
+        description: 'Bitcoin experiences a significant price increase.',
+        url: '#',
+        publishedAt: '2025-06-01T12:00:00Z',
+      },
+      {
+        title: 'New BTC Protocol Update',
+        description: 'A major update to Bitcoin’s protocol is announced.',
+        url: '#',
+        publishedAt: '2025-06-01T14:00:00Z',
+      },
+      {
+        title: 'BTC Adoption Grows',
+        description: 'More companies adopt Bitcoin for transactions.',
+        url: '#',
+        publishedAt: '2025-06-01T16:00:00Z',
+      },
+    ],
+  },
+  ETH: {
+    articles: [
+      {
+        title: 'ETH Scaling Solution Launched',
+        description: 'Ethereum introduces a new scaling solution.',
+        url: '#',
+        publishedAt: '2025-06-01T12:00:00Z',
+      },
+      {
+        title: 'ETH DeFi Boom',
+        description: 'Decentralized finance on Ethereum sees growth.',
+        url: '#',
+        publishedAt: '2025-06-01T14:00:00Z',
+      },
+      {
+        title: 'ETH Network Upgrade',
+        description: 'Ethereum network undergoes a successful upgrade.',
+        url: '#',
+        publishedAt: '2025-06-01T16:00:00Z',
+      },
+    ],
+  },
+  USDT: {
+    articles: [
+      {
+        title: 'USDT Stability Report',
+        description: 'Tether maintains its 1:1 USD peg.',
+        url: '#',
+        publishedAt: '2025-06-01T12:00:00Z',
+      },
+      {
+        title: 'USDT Usage Increases',
+        description: 'Tether sees higher transaction volume.',
+        url: '#',
+        publishedAt: '2025-06-01T14:00:00Z',
+      },
+      {
+        title: 'USDT Regulatory Update',
+        description: 'New regulations affect Tether.',
+        url: '#',
+        publishedAt: '2025-06-01T16:00:00Z',
+      },
+    ],
+  },
+};
+const defaultSentimentData: SentimentData = {
+  coin: '',
+  positive: 0,
+  negative: 0,
+  neutral: 0,
+  score: 0,
+  socialScore: 0,
+  timestamp: '',
+};
+const fallbackSentimentData: Record<string, SentimentData> = {
+  BTC: {
+    coin: 'BTC',
+    positive: 40,
+    negative: 20,
+    neutral: 40,
+    score: 2, // -10 to 10 scale
+    socialScore: 3,
+    timestamp: '2025-06-01T12:00:00Z',
+  },
+  ETH: {
+    coin: 'ETH',
+    positive: 50,
+    negative: 30,
+    neutral: 20,
+    score: 1,
+    socialScore: 2,
+    timestamp: '2025-06-01T12:00:00Z',
+  },
+  USDT: {
+    coin: 'USDT',
+    positive: 30,
+    negative: 10,
+    neutral: 60,
+    score: 3,
+    socialScore: 4,
+    timestamp: '2025-06-01T12:00:00Z',
+  },
+};
+const defaultOnChainData: OnChainData = {
+  coin: '',
+  activeWallets: 0,
+  activeWalletsGrowth: 0,
+  largeTransactions: 0,
+  timestamp: '',
+};
 const fallbackOnChainData: Record<string, OnChainData> = {
-  BTC: { price: 60000, marketCap: 1.2e12, volume: 3e10 },
-  ETH: { price: 3000, marketCap: 3.6e11, volume: 1.5e10 },
-  USDT: { price: 1, marketCap: 1.1e11, volume: 5e10 },
+  BTC: {
+    coin: 'BTC',
+    activeWallets: 150000,
+    activeWalletsGrowth: 5.2,
+    largeTransactions: 250,
+    timestamp: '2025-06-01T12:00:00Z',
+  },
+  ETH: {
+    coin: 'ETH',
+    activeWallets: 120000,
+    activeWalletsGrowth: 3.8,
+    largeTransactions: 180,
+    timestamp: '2025-06-01T12:00:00Z',
+  },
+  USDT: {
+    coin: 'USDT',
+    activeWallets: 90000,
+    activeWalletsGrowth: 2.5,
+    largeTransactions: 300,
+    timestamp: '2025-06-01T12:00:00Z',
+  },
 };
 
 export const fetchEvents = async (api: string, endpoint: string, params: Record<string, any> = {}): Promise<any> => {
@@ -20,7 +147,7 @@ export const fetchEvents = async (api: string, endpoint: string, params: Record<
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const queryParams = new URLSearchParams(params).toString();
-      const url = `/api/proxy?api=${api}&endpoint=${endpoint}${queryParams ? `&params=${encodeURIComponent(JSON.stringify(params))}` : ''}`;
+      const url = `/api/proxy?api=${api}&endpoint=${endpoint}${queryParams ? `¶ms=${encodeURIComponent(JSON.stringify(params))}` : ''}`;
       const response = await fetch(url);
       if (!response.ok) throw new Error(`API request failed with status ${response.status}: ${await response.text()}`);
       const data = await response.json();
@@ -42,11 +169,11 @@ export const fetchNews = async (asset: string): Promise<NewsData> => {
     });
     const data = response.data?.articles || [];
     return {
-      articles: data.map(article => ({
+      articles: data.map((article: any) => ({
         title: article.title || 'No title',
         description: article.description || 'No description',
         url: article.url || '#',
-        publishedAt: article.publishedAt || '', // Include publishedAt
+        publishedAt: article.publishedAt || '',
       })),
     };
   } catch (error) {
@@ -63,12 +190,15 @@ export const fetchOnChainData = async (asset: string): Promise<OnChainData> => {
     });
     const data = response.data;
     return {
-      price: data[asset.toLowerCase()]?.usd || 0,
-      marketCap: data[asset.toLowerCase()]?.usd_market_cap || 0,
-      volume: data[asset.toLowerCase()]?.usd_24h_vol || 0,
+      coin: asset,
+      activeWallets: data[asset.toLowerCase()]?.usd_active_wallets || 0,
+      activeWalletsGrowth: data[asset.toLowerCase()]?.usd_active_wallets_growth || 0,
+      largeTransactions: data[asset.toLowerCase()]?.usd_large_transactions || 0,
+      timestamp: new Date().toISOString(),
     };
   } catch (error) {
     console.error(`Error fetching on-chain data for ${asset} via CoinGecko:`, error);
+    await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds before fallback
     return fallbackOnChainData[asset] || defaultOnChainData;
   }
 };
@@ -78,10 +208,10 @@ export const fetchSocialSentiment = async (asset: string): Promise<SentimentData
     const response = await fetchEvents('reddit', 'r/CryptoCurrency.rss');
     const data = response.data?.rss?.channel?.[0]?.item || [];
     const sentimentScore = analyzeSentiment(data);
-    return { score: Math.max(-1, Math.min(1, sentimentScore)) };
+    return { coin: asset, score: Math.max(-10, Math.min(10, sentimentScore)), timestamp: new Date().toISOString() };
   } catch (error) {
     console.error(`Error fetching social sentiment for ${asset} from Reddit:`, error);
-    return { score: 0 };
+    return { coin: asset, score: 0, timestamp: '2025-06-01T12:00:00Z' };
   }
 };
 
@@ -91,17 +221,17 @@ const analyzeSentiment = (data: any): number => {
 
 export const calculateNewsSentiment = async (news: NewsData[], asset: string): Promise<SentimentData> => {
   try {
-    const prompt = `Analyze the sentiment of the following news articles about ${asset}: ${JSON.stringify(news.articles)}. Return a score from -1 (negative) to 1 (positive).`;
+    const prompt = `Analyze the sentiment of the following news articles about ${asset}: ${JSON.stringify(news.articles)}. Return a score from -10 (negative) to 10 (positive).`;
     const response = await fetchEvents('openai', 'v1/chat/completions', {
       model: 'gpt-3.5-turbo',
       messages: [{ role: 'user', content: prompt }],
     });
     const data = response.data;
     const sentimentScore = parseFloat(data.choices?.[0]?.message?.content || '0');
-    return { score: Math.max(-1, Math.min(1, sentimentScore)) };
+    return { coin: asset, score: Math.max(-10, Math.min(10, sentimentScore)), timestamp: new Date().toISOString() };
   } catch (error) {
     console.error(`Error calculating news sentiment for ${asset}:`, error);
-    return { score: 0 };
+    return fallbackSentimentData[asset] || defaultSentimentData;
   }
 };
 
@@ -111,10 +241,18 @@ export const fetchSentimentData = async (asset: string): Promise<SentimentData> 
     const newsSentiment = await calculateNewsSentiment([news], asset);
     const socialSentiment = await fetchSocialSentiment(asset);
     const combinedScore = (newsSentiment.score * 0.6 + socialSentiment.score * 0.4);
-    return { score: Math.max(-1, Math.min(1, combinedScore)) };
+    return {
+      coin: asset,
+      positive: newsSentiment.score > 0 ? 60 : 20,
+      negative: newsSentiment.score < 0 ? 60 : 20,
+      neutral: 20,
+      score: Math.max(-10, Math.min(10, combinedScore)),
+      socialScore: socialSentiment.score,
+      timestamp: new Date().toISOString(),
+    };
   } catch (error) {
     console.error(`Error fetching sentiment data for ${asset}:`, error);
-    return { score: 0 };
+    return fallbackSentimentData[asset] || defaultSentimentData;
   }
 };
 
@@ -124,8 +262,4 @@ export const STATIC_PRICE_CHANGES: Record<string, number> = {
   USDT: 0.1,
 };
 
-export const STATIC_NEWS: Record<string, NewsData> = {
-  BTC: { articles: [{ title: 'Static BTC News', description: 'Sample news for BTC', url: '#' }] },
-  ETH: { articles: [{ title: 'Static ETH News', description: 'Sample news for ETH', url: '#' }] },
-  USDT: { articles: [{ title: 'Static USDT News', description: 'Sample news for USDT', url: '#' }] },
-};
+export const STATIC_NEWS: Record<string, NewsData> = fallbackNewsData; // Use the same data as fallback
