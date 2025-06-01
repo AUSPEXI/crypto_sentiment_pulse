@@ -1,16 +1,19 @@
 [build]
   base = "csp_project/project"
   command = "npm run build"
+  commandOrigin = "config"
   publish = "dist"
+  publishOrigin = "config"
 
 [build.environment]
   NODE_VERSION = "18"
 
 [functions]
-  directory = "netlify/functions"
+  directory = ".netlify/functions"
 
 [[redirects]]
-  from = "/api/proxy"
-  to = "/.netlify/functions/proxy"
+  from = "/api/proxy/*"
+  to = "/.netlify/functions/proxy/:splat"
   status = 200
   force = true
+  redirectsOrigin = "config"
