@@ -53,9 +53,9 @@ export const handler = async (event, context) => {
       throw new Error(`API request failed with status ${response.status}: ${await response.text()}`);
     }
 
-    const contentType = response.headers.get('content-type');
+    console.log('Response content-type:', response.headers.get('content-type')); // Debug log
     let data;
-    if (contentType && (contentType.includes('application/xml') || contentType.includes('text/xml'))) {
+    if (api === 'reddit' || (response.headers.get('content-type')?.includes('application/xml') || response.headers.get('content-type')?.includes('text/xml'))) {
       const { parseStringPromise } = await import('xml2js');
       const xml = await response.text();
       data = await parseStringPromise(xml);
