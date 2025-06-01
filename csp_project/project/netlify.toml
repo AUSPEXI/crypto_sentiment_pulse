@@ -1,20 +1,16 @@
-# csp_project/project/netlify.toml
 [build]
   base = "csp_project/project"
   command = "npm run build"
-  commandOrigin = "config"
   publish = "dist"
-  publishOrigin = "config"
 
 [build.environment]
-  NODE_VERSION = "18" # Updated to Node 18 for better ESM support
+  NODE_VERSION = "18"
 
 [functions]
-  directory = ".netlify/functions"
+  directory = "netlify/functions"
 
 [[redirects]]
-  from = "/api/proxy/*"
-  to = "/.netlify/functions/proxy/:splat"
+  from = "/api/proxy"
+  to = "/.netlify/functions/proxy"
   status = 200
   force = true
-  redirectsOrigin = "config"
