@@ -147,7 +147,7 @@ export const fetchEvents = async (api: string, endpoint: string, params: Record<
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const queryParams = new URLSearchParams(params).toString();
-      const url = `/api/proxy?api=${api}&endpoint=${endpoint}${queryParams ? `¶ms=${encodeURIComponent(JSON.stringify(params))}` : ''}`;
+      const url = `/api/proxy?api=${api}&endpoint=${endpoint}${queryParams ? `&params=${encodeURIComponent(JSON.stringify(params))}` : ''}`;
       const response = await fetch(url);
       if (!response.ok) throw new Error(`API request failed with status ${response.status}: ${await response.text()}`);
       const data = await response.json();
@@ -162,12 +162,12 @@ export const fetchEvents = async (api: string, endpoint: string, params: Record<
 
 export const fetchNews = async (asset: string): Promise<NewsData> => {
   try {
-    const response = await fetchEvents('newsapi', 'top-headlines', {
+    const response = await fetchEvents('newsapi', 'everything', {
       q: asset,
-      category: 'business',
+      sortBy: 'publishedAt',
       pageSize: 5,
     });
-    const data = response.data?.articles || [];
+    const data = response.articles || [];
     return {
       articles: data.map((article: any) => ({
         title: article.title || 'No title',
@@ -184,16 +184,20 @@ export const fetchNews = async (asset: string): Promise<NewsData> => {
 
 export const fetchOnChainData = async (asset: string): Promise<OnChainData> => {
   try {
-    const response = await fetchEvents('coingecko', 'simple/price', {
+    const response = await fetchEvents('coingecko', 'coins/markets', {
       ids: asset.toLowerCase(),
-      vs_currencies: 'usd',
+      vs_currency: 'usd',
+      order: 'market_cap_desc',
+      per_page: 1,
+      page: 1,
+      sparkline: false,
     });
-    const data = response.data;
+    const data = response[0] || {};
     return {
       coin: asset,
-      activeWallets: data[asset.toLowerCase()]?.usd_active_wallets || 0,
-      activeWalletsGrowth: data[asset.toLowerCase()]?.usd_active_wallets_growth || 0,
-      largeTransactions: data[asset.toLowerCase()]?.usd_large_transactions || 0,
+      activeWallets: data.total_volume || 0, // Adjusted field
+      activeWalletsGrowth: data.price_change_percentage_24h || 0,
+      largeTransactions: data.market_cap || 0,
       timestamp: new Date().toISOString(),
     };
   } catch (error) {
@@ -221,13 +225,13 @@ const analyzeSentiment = (data: any): number => {
 
 export const calculateNewsSentiment = async (news: NewsData[], asset: string): Promise<SentimentData> => {
   try {
-    const prompt = `Analyze the sentiment of the following news articles about ${asset}: ${JSON.stringify(news.articles)}. Return a score from -10 (negative) to 10 (positive).`;
+    const prompt = `Analyze the sentiment of the following news articles about ${asset}: ${JSON.stringify(news.articles || [])}. Return a score from -10 (negative) to 10 (positive).`;
     const response = await fetchEvents('openai', 'v1/chat/completions', {
       model: 'gpt-3.5-turbo',
       messages: [{ role: 'user', content: prompt }],
     });
-    const data = response.data;
-    const sentimentScore = parseFloat(data.choices?.[0]?.message?.content || '0');
+    const data = response.choices?.[0]?.message?.content || '0';
+    const sentimentScore = parseFloat(data);
     return { coin: asset, score: Math.max(-10, Math.min(10, sentimentScore)), timestamp: new Date().toISOString() };
   } catch (error) {
     console.error(`Error calculating news sentiment for ${asset}:`, error);
