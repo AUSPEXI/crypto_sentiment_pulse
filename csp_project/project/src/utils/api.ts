@@ -19,10 +19,10 @@ export const fetchEvents = async (api: string, endpoint: string, params: Record<
   const maxAttempts = 2;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const response = await fetch(`/api/proxy?api=${api}&endpoint=${endpoint}&params=${encodeURIComponent(JSON.stringify({ ...params, pageSize: 2 }))}`);
-      if (!response.ok) {
-        throw new Error(`API request failed with status ${response.status}: ${await response.text()}`);
-      }
+      const queryParams = new URLSearchParams(params).toString();
+      const url = `/api/proxy?api=${api}&endpoint=${endpoint}${queryParams ? `&params=${encodeURIComponent(JSON.stringify(params))}` : ''}`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`API request failed with status ${response.status}: ${await response.text()}`);
       const data = await response.json();
       return data;
     } catch (error) {
@@ -33,7 +33,6 @@ export const fetchEvents = async (api: string, endpoint: string, params: Record<
   }
 };
 
-// Rest of the file remains unchanged
 export const fetchNews = async (asset: string): Promise<NewsData> => {
   try {
     const response = await fetchEvents('newsapi', 'top-headlines', {
@@ -41,7 +40,7 @@ export const fetchNews = async (asset: string): Promise<NewsData> => {
       category: 'business',
       pageSize: 5,
     });
-    const data = response.data.articles || [];
+    const data = response.data?.articles || [];
     return {
       articles: data.map(article => ({
         title: article.title || 'No title',
@@ -59,7 +58,7 @@ export const fetchOnChainData = async (asset: string): Promise<OnChainData> => {
   try {
     const response = await fetchEvents('coingecko', 'simple/price', {
       ids: asset.toLowerCase(),
-      vs_currencies: 'usd',
+      vs_currencies: 'usd', // Ensure this is passed correctly
     });
     const data = response.data;
     return {
@@ -76,7 +75,7 @@ export const fetchOnChainData = async (asset: string): Promise<OnChainData> => {
 export const fetchSocialSentiment = async (asset: string): Promise<SentimentData> => {
   try {
     const response = await fetchEvents('reddit', 'r/CryptoCurrency.rss');
-    const data = response.data.rss?.channel?.[0]?.item || [];
+    const data = response.data?.rss?.channel?.[0]?.item || [];
     const sentimentScore = analyzeSentiment(data);
     return { score: Math.max(-1, Math.min(1, sentimentScore)) };
   } catch (error) {
