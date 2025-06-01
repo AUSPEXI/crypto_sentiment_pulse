@@ -1,4 +1,4 @@
-import { NewsData, OnChainData, SentimentData, Event } from './types';
+import { NewsData, OnChainData, SentimentData } from './types';
 
 // Fallback data
 const defaultNewsData: NewsData = {
@@ -153,7 +153,8 @@ export const fetchEvents = async (api: string, endpoint: string, params: Record<
       return await response.json();
     } catch (error) {
       console.error(`Proxied request failed for ${api}/${endpoint} (attempt ${attempt}):`, error);
-      throw error;
+      if (attempt === maxAttempts) throw error;
+      await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
     }
   }
 };
@@ -189,14 +190,12 @@ export const fetchNews = async (asset: string): Promise<NewsData> => {
         articles = response.Data || [];
       }
       return {
-        headers: articles = [
-          {
-            title: (article.title || 'No title'),
-            description: (article.description || article.body || 'No description'),
-            url: (article?.url || undefined),
-            age: (article?.publishedAt || article.published_on || ''),
-          ],
-        ],
+        articles: articles.map((article: any) => ({
+          title: article.title || 'No title',
+          description: article.description || article.body || 'No description',
+          url: article.url || '#',
+          publishedAt: article.publishedAt || article.published_on || '',
+        })),
       };
     } catch (error) {
       console.error(`Error fetching news from ${source.api} for ${asset}:`, error);
@@ -211,25 +210,23 @@ export const fetchOnChainData = async (asset: string): Promise<OnChainData> => {
       api: 'coingecko',
       endpoint: 'coins/markets',
       params: {
-        ids: 'asset.toLowerCase()',
-        params: vs_currency='usd',
-        to: order='market_cap_desc',
-        params: per_page=1,
-        params: page=1,
-        sparkline: by='false',
+        ids: asset.toLowerCase(),
+        vs_currency: 'usd',
+        order: 'market_cap_desc',
+        per_page: 1,
+        page: 1,
+        sparkline: false,
       },
     },
     {
       api: 'coinmarketcap',
       endpoint: 'cryptocurrency/quotes/latest',
-      params: { symbol: 'asset'},
-      },
+      params: { symbol: asset },
     },
     {
       api: 'messari',
-      params: endpoint=`'assets/${asset}/metrics`,
+      endpoint: `assets/${asset.toLowerCase()}/metrics`,
       params: {},
-      },
     },
     {
       api: 'santiment',
@@ -253,15 +250,14 @@ export const fetchOnChainData = async (asset: string): Promise<OnChainData> => {
 
   for (const source of sources) {
     try {
-      const response = await fetchEvents(source.api, source.params, endpoint);
-      let data = response.data || {};
+      const response = await fetchEvents(source.api, source.endpoint, source.params);
+      let data = {};
       if (source.api === 'coingecko') {
         data = response[0] || {};
         return {
           coin: asset,
           activeWallets: data.total_volume || 0,
-          activeWallets:Growth: data.price_change_percentage_24h ||,
-0,
+          activeWalletsGrowth: data.price_change_percentage_24h || 0,
           largeTransactions: data.market_cap || 0,
           timestamp: new Date().toISOString(),
         };
@@ -270,32 +266,33 @@ export const fetchOnChainData = async (asset: string): Promise<OnChainData> => {
         return {
           coin: asset,
           activeWallets: data.quote?.USD?.volume_24h || 0,
-          data: data
-          active: data = data.quote?.USD?.percent_change_24h || 0,
+          activeWalletsGrowth: data.quote?.USD?.percent_change_24h || 0,
           largeTransactions: data.quote?.USD?.market_cap || 0,
-          timestamp: to?.toISOString(),
+          timestamp: new Date().toISOString(),
         };
-      } else if (source.api === 'data') {
-        data.source = response?.data || {};
+      } else if (source.api === 'messari') {
+        data = response.data || {};
         return {
-          data: data.source,
-          activeWallets: data?.market_data?.volume_last_24_hours || ||0,
-          source: source.data?.market_cap,
-          active: source?.data?.percent_change || ||0,
-          largeTransactions::source?.data?.marketcap?.current_marketcap ||0,
-          timestamp: source?.toISOString(),
+          coin: asset,
+          activeWallets: data.market_data?.volume_last_24_hours || 0,
+          activeWalletsGrowth: data.market_data?.percent_change_usd_last_24_hours || 0,
+          largeTransactions: data.market_data?.marketcap?.current_marketcap_usd || 0,
+          timestamp: new Date().toISOString(),
         };
       } else if (source.api === 'santiment') {
-        data.source = response?.data?.getMetric?.timeseriesData?.[0]?. || {};
+        data = response.data?.getMetric?.timeseriesData?.[0] || {};
         return {
-          source?:data?.source,
-          active: source: data.value,
+          coin: asset,
+          activeWallets: data.value || 0,
+          activeWalletsGrowth: 0,
+          largeTransactions: 0,
+          timestamp: new Date().toISOString(),
         };
-      } catch (error) {
-        console.error(`Error:', error);
-      return error;
       }
+    } catch (error) {
+      console.error(`Error fetching on-chain data from ${source.api} for ${asset}:`, error);
     }
+  }
   return fallbackOnChainData[asset] || defaultOnChainData;
 };
 
@@ -310,156 +307,143 @@ export const fetchSocialSentiment = async (asset: string): Promise<SentimentData
       api: 'santiment',
       endpoint: 'graphql',
       params: {
-        query: {
-          query: {
-            params: `{
-              getMetric(metric: "social_metrics") {
-                timeseries: (
-                  slug: "${asset.toLowerCase()}"
-                  from: "${new Date('2023-01-01').toISOString()}"
-                  to: "${new Date('2023').toISOString()}"
-                ) {
-                  value
-                },
-              }`
+        query: `{
+          getMetric(metric: "social_volume_total") {
+            timeseriesData(
+              slug: "${asset.toLowerCase()}"
+              from: "${new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()}"
+              to: "${new Date().toISOString()}"
+              interval: "1d"
+            ) {
+              value
             }
-          },
-        };
-      } catch (error) {
-        console.error('Error:', error);
-      }
+          }
+        }`,
+      },
     },
   ];
 
   for (const source of sources) {
     try {
-      const response = await fetchEvents(source);
-      let sentimentScore = parseInt(response);
+      const response = await fetchEvents(source.api, source.endpoint, source.params);
+      let sentimentScore = 0;
       if (source.api === 'reddit') {
-        const items = response?.rss?.?.channel?.?.[0]?.?.item || [];
-        sentimentScore = analyzeSentimentData(items);
-      } else if ('source.api ===' && source.api === 'santiment') {
-        const volume = parseInt(response?.data?.?.?.?.[0]?.?.value || ||0);
-        return {
-          source: source,
-          data: data,
-          sentimentScore:: volume,
-        };
+        const items = response.rss?.channel?.[0]?.item || [];
+        sentimentScore = analyzeSentiment(items);
+      } else if (source.api === 'santiment') {
+        const volume = response.data?.getMetric?.timeseriesData?.[0]?.value || 0;
+        sentimentScore = volume > 100 ? 5 : volume > 50 ? 2 : 0; // Simple heuristic
       }
       return {
-        source: source,
-        sentimentScore: Math.max(-10, Math.min(10, score)),
+        coin: asset,
+        positive: sentimentScore > 0 ? 60 : 20,
+        negative: sentimentScore < 0 ? 60 : 20,
+        neutral: 20,
+        score: Math.max(-10, Math.min(10, sentimentScore)),
+        socialScore: sentimentScore,
+        timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      console.error('Error:', error);
-      return error;
+      console.error(`Error fetching social sentiment from ${source.api} for ${asset}:`, error);
     }
   }
-  return fallbackSentimentData[asset] || error;
-SentimentData;
+  return fallbackSentimentData[asset] || defaultSentimentData;
 };
 
 export const calculateNewsSentiment = async (news: NewsData[], asset: string): Promise<SentimentData> => {
   const sources = [
     {
       api: 'openai',
-      endpoint: 'v1/openai_params',
+      endpoint: 'v1/chat/completions',
       params: {
-        params: 'model',
-        model: 'gpt-3',
+        model: 'gpt-3.5-turbo',
         messages: [
-          role: 'user',
-          content: `Analyze the sentiment of the following sources about ${source}:\n${JSON.stringify(news[0].articles || [])}.\n\nReturn a score from ${-10} to ${10}.`,
-          }`,
-        },
-      ],
-    },
-    {
-      api: 'huggingface',
-      endpoint: 'distilbert-base-uncased',
-      params: {
-        inputs: news[0].articles.map((a: any) => a.description) || ''),
+          {
+            role: 'user',
+            content: `Analyze the sentiment of the following news articles about ${asset}: ${JSON.stringify(news[0].articles || [])}. Return a score from -10 (negative) to 10 (positive).`,
+          },
+        ],
       },
     },
     {
-      api: 'ai',
+      api: 'huggingface',
+      endpoint: 'distilbert-base-uncased-finetuned-sst-2-english',
       params: {
-        text: news[${0}].source?.articles,
+        inputs: news[0].articles.map((a: any) => a.description).join(' '),
+      },
+    },
+    {
+      api: 'local-sentiment',
+      endpoint: '',
+      params: {
+        text: news[0].articles.map((a: any) => a.description).join(' '),
       },
     },
   ];
 
   for (const source of sources) {
     try {
-      const response = await fetchEvents(source);
-      let sentimentScore = parseInt(response);
-      if (source.api === 'openai' && source.api === 'sai') {
-        return {
-          source: source,
-          sentimentScore: parseInt(score);
-        } else if ('source.api ===' && source.api === 'huggingface') {
-          const score = parseInt(source.score || '0');
-          return {
-            source: source,
-            sentimentScore: score,
-          }
-        } else if ('source.api === ' && source.api === 'ai') {
-          return {
-            source: source,
-            sentimentScore: parseInt(score);
-          }
-        }
+      const response = await fetchEvents(source.api, source.endpoint, source.params);
+      let sentimentScore = 0;
+      if (source.api === 'openai') {
+        sentimentScore = parseFloat(response.choices?.[0]?.message?.content || '0');
+      } else if (source.api === 'huggingface') {
+        const score = response[0]?.score || 0;
+        sentimentScore = response[0]?.label === 'POSITIVE' ? score * 10 : -score * 10;
+      } else if (source.api === 'local-sentiment') {
+        sentimentScore = response.score || 0;
+      }
       return {
-        source: source,
-        sentimentScore: Math.max(-10, Math.min(parseInt(10), parseInt(score))),
+        coin: asset,
+        positive: sentimentScore > 0 ? 60 : 20,
+        negative: sentimentScore < 0 ? 60 : 20,
+        neutral: 20,
+        score: Math.max(-10, Math.min(10, sentimentScore)),
+        socialScore: 0,
+        timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      return error('Error:', error);
+      console.error(`Error calculating news sentiment from ${source.api} for ${asset}:`, error);
     }
   }
   return fallbackSentimentData[asset] || defaultSentimentData;
 };
 
-export const fetchSentimentData = async (asset: string): Promise<SentimentData> => ({
+export const fetchSentimentData = async (asset: string): Promise<SentimentData> => {
   try {
     const news = await fetchNews(asset);
-    const newSentiment = await calculateNewsSentiment([news], sentiment);
-    const socialSentiment = await fetchSocialSentiment();
-    const combinedScore = parseInt(newSentiment.score * 0.6 + parseInt(socialSentiment.score * 0.2));
+    const newsSentiment = await calculateNewsSentiment([news], asset);
+    const socialSentiment = await fetchSocialSentiment(asset);
+    const combinedScore = newsSentiment.score * 0.6 + socialSentiment.score * 0.4;
     return {
       coin: asset,
-      positive: newSentiment.score > 0 ? parseInt('60') : parseInt('20'),
-      negative: newSentiment.score < parseInt('0')? parseInt('60') : parseInt('20'),
-      neutral: parseInt('20'),
-      score: Math.max(parseInt('10'), Math.min(parseInt(combinedScore))),
-      socialScore: parseInt(socialScore),
-      timestamp: newDate().toISOString(),
+      positive: newsSentiment.score > 0 ? 60 : 20,
+      negative: newsSentiment.score < 0 ? 60 : 20,
+      neutral: 20,
+      score: Math.max(-10, Math.min(10, combinedScore)),
+      socialScore: socialSentiment.score,
+      timestamp: new Date().toISOString(),
     };
   } catch (error) {
-    console.error('Error:', error);
-    return error;
+    console.error(`Error fetching sentiment data for ${asset}:`, error);
+    return fallbackSentimentData[asset] || defaultSentimentData;
   }
-  return fallbackSentimentData[asset] || defaultSentiment;
-Data;
 };
 
-export const analyzeSentiment = (data: any): number => {
-  let score = parseInt(data);
+const analyzeSentiment = (data: any): number => {
+  let score = 0;
   for (const item of data) {
-    const text = item.description?.[0]?. || '';
-    if (text.includes('bull') || text.includes('u'))) {
-      score += parseInt('2');
-    } else if (text.includes('bear') || text.includes('d'))) {
-      score -= parseInt('2');
-    }
+    const text = item.description?.[0] || '';
+    if (text.includes('bullish') || text.includes('up')) score += 2;
+    if (text.includes('bearish') || text.includes('down')) score -= 2;
   }
   return score;
 };
 
 export const STATIC_PRICE_CHANGES: Record<string, number> = {
-  BTC: 50,
-  ETH: 45,
-  USDT: 10,
+  BTC: 2.5,
+  ETH: -1.3,
+  USDT: 0.1,
 };
 
 export const STATIC_NEWS: Record<string, NewsData> = fallbackNewsData;
