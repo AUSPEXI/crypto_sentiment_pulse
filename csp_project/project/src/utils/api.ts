@@ -118,7 +118,7 @@ const defaultOnChainData: OnChainData = {
   largeTransactions: 0,
   timestamp: '',
 };
-const fallbackOnChainData: Record<string, OnChainData> = {
+export const fallbackOnChainData: Record<string, OnChainData> = {
   BTC: {
     coin: 'BTC',
     activeWallets: 150000,
