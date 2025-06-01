@@ -5,7 +5,7 @@ import { SentimentIntensityAnalyzer } from 'vader-sentiment';
 const API_KEYS = {
   newsapi: process.env.NEWSAPI_API_KEY,
   openai: process.env.OPENAI_API_KEY,
-  cryptopanic: process.env.CRYPTOPANIC_API_KEY,
+  cryptopanic: process.env.CRYPTOPANIC_API_KEY || process.env.CRYPTOPANIC_API_TOKEN,
   huggingface: process.env.HUGGINGFACE_API_KEY,
   santiment: process.env.SANTIMENT_API_KEY,
   coinmarketcap: process.env.COINMARKETCAP_API_KEY || '',
@@ -28,10 +28,13 @@ const BASE_URLS = {
   messari: 'https://data.messari.io/api/v1',
 };
 
+const TIMEOUT_MS = 8000; // 8 seconds to stay within Netlify's 10-second limit
+
 export default async (req, context) => {
   const { api, endpoint, params } = req.queryStringParameters || {};
 
   if (!api || (!endpoint && api.toLowerCase() !== 'local-sentiment')) {
+    console.error('Missing api or endpoint parameter', { api, endpoint });
     return {
       statusCode: 400,
       body: JSON.stringify({ error: 'Missing api or endpoint parameter' }),
@@ -42,6 +45,13 @@ export default async (req, context) => {
     try {
       const decodedParams = JSON.parse(decodeURIComponent(params || '{}'));
       const text = decodedParams.text || '';
+      if (!text) {
+        console.error('No text provided for local sentiment analysis');
+        return {
+          statusCode: 400,
+          body: JSON.stringify({ error: 'No text provided' }),
+        };
+      }
       const sentiment = SentimentIntensityAnalyzer.polarity_scores(text);
       const score = sentiment.compound * 10; // Scale to -10 to 10
       return {
@@ -49,15 +59,17 @@ export default async (req, context) => {
         body: JSON.stringify({ score }),
       };
     } catch (error) {
+      console.error('Local sentiment error:', error.message, error.stack);
       return {
         statusCode: 500,
-        body: JSON.stringify({ error: error.message }),
+        body: JSON.stringify({ error: `Local sentiment failed: ${error.message}` }),
       };
     }
   }
 
   const baseUrl = BASE_URLS[api.toLowerCase()];
   if (!baseUrl) {
+    console.error('Unsupported API', { api });
     return {
       statusCode: 400,
       body: JSON.stringify({ error: `Unsupported API: ${api}` }),
@@ -116,11 +128,18 @@ export default async (req, context) => {
       }
     }
 
-    console.log('Proxying to:', url);
+    console.log('Proxying to:', url, 'Options:', { method: options.method || 'GET', headers });
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    options.signal = controller.signal;
+
     const response = await fetch(url, options);
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const text = await response.text();
+      console.error('API response error:', { status: response.status, text });
       throw new Error(`API request failed with status ${response.status}: ${text}`);
     }
 
@@ -137,10 +156,10 @@ export default async (req, context) => {
       body: JSON.stringify(data),
     };
   } catch (error) {
-    console.error(`Proxy error for ${api}/${endpoint}:`, error);
+    console.error(`Proxy error for ${api}/${endpoint}:`, error.message, error.stack);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: error.message }),
+      body: JSON.stringify({ error: `Proxy failed: ${error.message}` }),
     };
   }
 };
