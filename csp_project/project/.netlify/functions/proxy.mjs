@@ -14,7 +14,6 @@ export const handler = async (event, context) => {
   }
 
   try {
-    // Define base URLs for each API
     let baseUrl;
     switch (api) {
       case 'coingecko':
