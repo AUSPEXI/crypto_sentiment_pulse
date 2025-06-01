@@ -1,6 +1,6 @@
 // src/components/EventAlerts.tsx
 import React, { useState, useEffect } from 'react';
-import { fetchEvents, STATIC_NEWS, Event } from '../utils/api';
+import { fetchNews, STATIC_NEWS, Event } from '../utils/api';
 
 interface EventAlertsProps {
   coin?: string; // Make coin optional
@@ -18,15 +18,16 @@ const EventAlerts: React.FC<EventAlertsProps> = ({ coin }) => {
       try {
         // Use a default coin if none provided, or skip fetch
         if (!coin) {
-          setEvents(STATIC_NEWS['BTC'] || []); // Default to BTC static news
+          setEvents(STATIC_NEWS['BTC'].articles || []);
           return;
         }
-        const fetchedEvents = await fetchEvents(coin);
-        setEvents(fetchedEvents);
+        const fetchedEvents = await fetchNews(coin);
+        console.log('Fetched events:', fetchedEvents); // Debug log
+        setEvents(Array.isArray(fetchedEvents.articles) ? fetchedEvents.articles : []);
       } catch (err) {
         console.error(`Error fetching events for ${coin}:`, err.message);
         setError('Failed to load events. Showing static data.');
-        setEvents(STATIC_NEWS[coin] || []);
+        setEvents(STATIC_NEWS[coin]?.articles || []);
       } finally {
         setLoading(false);
       }
@@ -49,7 +50,9 @@ const EventAlerts: React.FC<EventAlertsProps> = ({ coin }) => {
                 {event.title}
               </a>
               <p>{event.description}</p>
-              <p className="text-sm text-gray-500">{new Date(event.publishedAt).toLocaleString()}</p>
+              <p className="text-sm text-gray-500">
+                {event.publishedAt ? new Date(event.publishedAt).toLocaleString() : 'Date unavailable'}
+              </p>
             </li>
           ))}
         </ul>
