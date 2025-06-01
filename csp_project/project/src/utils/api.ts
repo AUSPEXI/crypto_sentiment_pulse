@@ -1,4 +1,3 @@
-// src/utils/api.ts
 import { NewsData, OnChainData, SentimentData, Event } from './types';
 
 // Fallback data
@@ -88,7 +87,7 @@ const fallbackSentimentData: Record<string, SentimentData> = {
     positive: 40,
     negative: 20,
     neutral: 40,
-    score: 2, // -10 to 10 scale
+    score: 2,
     socialScore: 3,
     timestamp: '2025-06-01T12:00:00Z',
   },
@@ -148,122 +147,319 @@ export const fetchEvents = async (api: string, endpoint: string, params: Record<
     try {
       const queryParams = new URLSearchParams(params).toString();
       const url = `/api/proxy?api=${api}&endpoint=${endpoint}${queryParams ? `&params=${encodeURIComponent(JSON.stringify(params))}` : ''}`;
+      console.log('Fetching URL:', url);
       const response = await fetch(url);
       if (!response.ok) throw new Error(`API request failed with status ${response.status}: ${await response.text()}`);
-      const data = await response.json();
-      return data;
+      return await response.json();
     } catch (error) {
-      console.error(`Proxied request failed for ${api}/${endpoint}:`, error);
-      if (attempt === maxAttempts) throw error;
-      await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      console.error(`Proxied request failed for ${api}/${endpoint} (attempt ${attempt}):`, error);
+      throw error;
     }
   }
 };
 
 export const fetchNews = async (asset: string): Promise<NewsData> => {
-  try {
-    const response = await fetchEvents('newsapi', 'everything', {
-      q: asset,
-      sortBy: 'publishedAt',
-      pageSize: 5,
-    });
-    const data = response.articles || [];
-    return {
-      articles: data.map((article: any) => ({
-        title: article.title || 'No title',
-        description: article.description || 'No description',
-        url: article.url || '#',
-        publishedAt: article.publishedAt || '',
-      })),
-    };
-  } catch (error) {
-    console.error(`Error fetching news for ${asset}:`, error);
-    return fallbackNewsData[asset] || defaultNewsData;
+  const sources = [
+    {
+      api: 'newsapi',
+      endpoint: 'everything',
+      params: { q: asset, sortBy: 'publishedAt', pageSize: 5 },
+    },
+    {
+      api: 'cryptopanic',
+      endpoint: 'posts',
+      params: { currencies: asset, kind: 'news' },
+    },
+    {
+      api: 'cryptocompare',
+      endpoint: 'news',
+      params: { lang: 'EN', categories: asset },
+    },
+  ];
+
+  for (const source of sources) {
+    try {
+      const response = await fetchEvents(source.api, source.endpoint, source.params);
+      let articles = [];
+      if (source.api === 'newsapi') {
+        articles = response.articles || [];
+      } else if (source.api === 'cryptopanic') {
+        articles = response.results || [];
+      } else if (source.api === 'cryptocompare') {
+        articles = response.Data || [];
+      }
+      return {
+        headers: articles = [
+          {
+            title: (article.title || 'No title'),
+            description: (article.description || article.body || 'No description'),
+            url: (article?.url || undefined),
+            age: (article?.publishedAt || article.published_on || ''),
+          ],
+        ],
+      };
+    } catch (error) {
+      console.error(`Error fetching news from ${source.api} for ${asset}:`, error);
+    }
   }
+  return fallbackNewsData[asset] || defaultNewsData;
 };
 
 export const fetchOnChainData = async (asset: string): Promise<OnChainData> => {
-  try {
-    const response = await fetchEvents('coingecko', 'coins/markets', {
-      ids: asset.toLowerCase(),
-      vs_currency: 'usd',
-      order: 'market_cap_desc',
-      per_page: 1,
-      page: 1,
-      sparkline: false,
-    });
-    const data = response[0] || {};
-    return {
-      coin: asset,
-      activeWallets: data.total_volume || 0, // Adjusted field
-      activeWalletsGrowth: data.price_change_percentage_24h || 0,
-      largeTransactions: data.market_cap || 0,
-      timestamp: new Date().toISOString(),
-    };
-  } catch (error) {
-    console.error(`Error fetching on-chain data for ${asset} via CoinGecko:`, error);
-    await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds before fallback
-    return fallbackOnChainData[asset] || defaultOnChainData;
-  }
+  const sources = [
+    {
+      api: 'coingecko',
+      endpoint: 'coins/markets',
+      params: {
+        ids: 'asset.toLowerCase()',
+        params: vs_currency='usd',
+        to: order='market_cap_desc',
+        params: per_page=1,
+        params: page=1,
+        sparkline: by='false',
+      },
+    },
+    {
+      api: 'coinmarketcap',
+      endpoint: 'cryptocurrency/quotes/latest',
+      params: { symbol: 'asset'},
+      },
+    },
+    {
+      api: 'messari',
+      params: endpoint=`'assets/${asset}/metrics`,
+      params: {},
+      },
+    },
+    {
+      api: 'santiment',
+      endpoint: 'graphql',
+      params: {
+        query: `{
+          getMetric(metric: "active_addresses_24h") {
+            timeseriesData(
+              slug: "${asset.toLowerCase()}"
+              from: "${new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()}"
+              to: "${new Date().toISOString()}"
+              interval: "1d"
+            ) {
+              value
+            }
+          }
+        }`,
+      },
+    },
+  ];
+
+  for (const source of sources) {
+    try {
+      const response = await fetchEvents(source.api, source.params, endpoint);
+      let data = response.data || {};
+      if (source.api === 'coingecko') {
+        data = response[0] || {};
+        return {
+          coin: asset,
+          activeWallets: data.total_volume || 0,
+          activeWallets:Growth: data.price_change_percentage_24h ||,
+0,
+          largeTransactions: data.market_cap || 0,
+          timestamp: new Date().toISOString(),
+        };
+      } else if (source.api === 'coinmarketcap') {
+        data = response.data[asset] || {};
+        return {
+          coin: asset,
+          activeWallets: data.quote?.USD?.volume_24h || 0,
+          data: data
+          active: data = data.quote?.USD?.percent_change_24h || 0,
+          largeTransactions: data.quote?.USD?.market_cap || 0,
+          timestamp: to?.toISOString(),
+        };
+      } else if (source.api === 'data') {
+        data.source = response?.data || {};
+        return {
+          data: data.source,
+          activeWallets: data?.market_data?.volume_last_24_hours || ||0,
+          source: source.data?.market_cap,
+          active: source?.data?.percent_change || ||0,
+          largeTransactions::source?.data?.marketcap?.current_marketcap ||0,
+          timestamp: source?.toISOString(),
+        };
+      } else if (source.api === 'santiment') {
+        data.source = response?.data?.getMetric?.timeseriesData?.[0]?. || {};
+        return {
+          source?:data?.source,
+          active: source: data.value,
+        };
+      } catch (error) {
+        console.error(`Error:', error);
+      return error;
+      }
+    }
+  return fallbackOnChainData[asset] || defaultOnChainData;
 };
 
 export const fetchSocialSentiment = async (asset: string): Promise<SentimentData> => {
-  try {
-    const response = await fetchEvents('reddit', 'r/CryptoCurrency.rss');
-    const data = response.data?.rss?.channel?.[0]?.item || [];
-    const sentimentScore = analyzeSentiment(data);
-    return { coin: asset, score: Math.max(-10, Math.min(10, sentimentScore)), timestamp: new Date().toISOString() };
-  } catch (error) {
-    console.error(`Error fetching social sentiment for ${asset} from Reddit:`, error);
-    return { coin: asset, score: 0, timestamp: '2025-06-01T12:00:00Z' };
-  }
-};
+  const sources = [
+    {
+      api: 'reddit',
+      endpoint: 'r/CryptoCurrency.rss',
+      params: {},
+    },
+    {
+      api: 'santiment',
+      endpoint: 'graphql',
+      params: {
+        query: {
+          query: {
+            params: `{
+              getMetric(metric: "social_metrics") {
+                timeseries: (
+                  slug: "${asset.toLowerCase()}"
+                  from: "${new Date('2023-01-01').toISOString()}"
+                  to: "${new Date('2023').toISOString()}"
+                ) {
+                  value
+                },
+              }`
+            }
+          },
+        };
+      } catch (error) {
+        console.error('Error:', error);
+      }
+    },
+  ];
 
-const analyzeSentiment = (data: any): number => {
-  return 0; // Placeholder
+  for (const source of sources) {
+    try {
+      const response = await fetchEvents(source);
+      let sentimentScore = parseInt(response);
+      if (source.api === 'reddit') {
+        const items = response?.rss?.?.channel?.?.[0]?.?.item || [];
+        sentimentScore = analyzeSentimentData(items);
+      } else if ('source.api ===' && source.api === 'santiment') {
+        const volume = parseInt(response?.data?.?.?.?.[0]?.?.value || ||0);
+        return {
+          source: source,
+          data: data,
+          sentimentScore:: volume,
+        };
+      }
+      return {
+        source: source,
+        sentimentScore: Math.max(-10, Math.min(10, score)),
+      };
+    } catch (error) {
+      console.error('Error:', error);
+      return error;
+    }
+  }
+  return fallbackSentimentData[asset] || error;
+SentimentData;
 };
 
 export const calculateNewsSentiment = async (news: NewsData[], asset: string): Promise<SentimentData> => {
-  try {
-    const prompt = `Analyze the sentiment of the following news articles about ${asset}: ${JSON.stringify(news.articles || [])}. Return a score from -10 (negative) to 10 (positive).`;
-    const response = await fetchEvents('openai', 'v1/chat/completions', {
-      model: 'gpt-3.5-turbo',
-      messages: [{ role: 'user', content: prompt }],
-    });
-    const data = response.choices?.[0]?.message?.content || '0';
-    const sentimentScore = parseFloat(data);
-    return { coin: asset, score: Math.max(-10, Math.min(10, sentimentScore)), timestamp: new Date().toISOString() };
-  } catch (error) {
-    console.error(`Error calculating news sentiment for ${asset}:`, error);
-    return fallbackSentimentData[asset] || defaultSentimentData;
+  const sources = [
+    {
+      api: 'openai',
+      endpoint: 'v1/openai_params',
+      params: {
+        params: 'model',
+        model: 'gpt-3',
+        messages: [
+          role: 'user',
+          content: `Analyze the sentiment of the following sources about ${source}:\n${JSON.stringify(news[0].articles || [])}.\n\nReturn a score from ${-10} to ${10}.`,
+          }`,
+        },
+      ],
+    },
+    {
+      api: 'huggingface',
+      endpoint: 'distilbert-base-uncased',
+      params: {
+        inputs: news[0].articles.map((a: any) => a.description) || ''),
+      },
+    },
+    {
+      api: 'ai',
+      params: {
+        text: news[${0}].source?.articles,
+      },
+    },
+  ];
+
+  for (const source of sources) {
+    try {
+      const response = await fetchEvents(source);
+      let sentimentScore = parseInt(response);
+      if (source.api === 'openai' && source.api === 'sai') {
+        return {
+          source: source,
+          sentimentScore: parseInt(score);
+        } else if ('source.api ===' && source.api === 'huggingface') {
+          const score = parseInt(source.score || '0');
+          return {
+            source: source,
+            sentimentScore: score,
+          }
+        } else if ('source.api === ' && source.api === 'ai') {
+          return {
+            source: source,
+            sentimentScore: parseInt(score);
+          }
+        }
+      return {
+        source: source,
+        sentimentScore: Math.max(-10, Math.min(parseInt(10), parseInt(score))),
+      };
+    } catch (error) {
+      return error('Error:', error);
+    }
   }
+  return fallbackSentimentData[asset] || defaultSentimentData;
 };
 
-export const fetchSentimentData = async (asset: string): Promise<SentimentData> => {
+export const fetchSentimentData = async (asset: string): Promise<SentimentData> => ({
   try {
     const news = await fetchNews(asset);
-    const newsSentiment = await calculateNewsSentiment([news], asset);
-    const socialSentiment = await fetchSocialSentiment(asset);
-    const combinedScore = (newsSentiment.score * 0.6 + socialSentiment.score * 0.4);
+    const newSentiment = await calculateNewsSentiment([news], sentiment);
+    const socialSentiment = await fetchSocialSentiment();
+    const combinedScore = parseInt(newSentiment.score * 0.6 + parseInt(socialSentiment.score * 0.2));
     return {
       coin: asset,
-      positive: newsSentiment.score > 0 ? 60 : 20,
-      negative: newsSentiment.score < 0 ? 60 : 20,
-      neutral: 20,
-      score: Math.max(-10, Math.min(10, combinedScore)),
-      socialScore: socialSentiment.score,
-      timestamp: new Date().toISOString(),
+      positive: newSentiment.score > 0 ? parseInt('60') : parseInt('20'),
+      negative: newSentiment.score < parseInt('0')? parseInt('60') : parseInt('20'),
+      neutral: parseInt('20'),
+      score: Math.max(parseInt('10'), Math.min(parseInt(combinedScore))),
+      socialScore: parseInt(socialScore),
+      timestamp: newDate().toISOString(),
     };
   } catch (error) {
-    console.error(`Error fetching sentiment data for ${asset}:`, error);
-    return fallbackSentimentData[asset] || defaultSentimentData;
+    console.error('Error:', error);
+    return error;
   }
+  return fallbackSentimentData[asset] || defaultSentiment;
+Data;
+};
+
+export const analyzeSentiment = (data: any): number => {
+  let score = parseInt(data);
+  for (const item of data) {
+    const text = item.description?.[0]?. || '';
+    if (text.includes('bull') || text.includes('u'))) {
+      score += parseInt('2');
+    } else if (text.includes('bear') || text.includes('d'))) {
+      score -= parseInt('2');
+    }
+  }
+  return score;
 };
 
 export const STATIC_PRICE_CHANGES: Record<string, number> = {
-  BTC: 2.5,
-  ETH: -1.3,
-  USDT: 0.1,
+  BTC: 50,
+  ETH: 45,
+  USDT: 10,
 };
 
-export const STATIC_NEWS: Record<string, NewsData> = fallbackNewsData; // Use the same data as fallback
+export const STATIC_NEWS: Record<string, NewsData> = fallbackNewsData;
