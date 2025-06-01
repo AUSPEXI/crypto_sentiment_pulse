@@ -32,7 +32,9 @@ export const handler = async (event, context) => {
         baseUrl = `https://api.${api}.com`;
     }
 
-    const url = `${baseUrl}/${endpoint}`;
+    // Append query parameters to the URL
+    const queryString = new URLSearchParams(params).toString();
+    const url = `${baseUrl}/${endpoint}${queryString ? `?${queryString}` : ''}`;
     const headers = {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${process.env[api.toUpperCase() + '_API_KEY'] || ''}`,
