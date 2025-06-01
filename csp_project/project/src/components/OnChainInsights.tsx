@@ -1,7 +1,7 @@
 // src/components/OnChainInsights.tsx
 import React, { useState, useEffect } from 'react';
 import { Bar } from 'react-chartjs-2';
-import { fetchOnChainData } from '../utils/api';
+import { fetchOnChainData, fallbackOnChainData } from '../utils/api';
 import { OnChainData } from '../types';
 import {
   Chart as ChartJS,
@@ -37,17 +37,22 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
               newData[coin] = data;
             } else {
               console.warn(`Incomplete data for ${coin}, using fallback`);
-              newData[coin] = { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: new Date().toISOString() };
+              newData[coin] = fallbackOnChainData[coin] || { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: '2025-06-01T12:00:00Z' };
             }
           } catch (err) {
             console.warn(`Failed to fetch data for ${coin}, using fallback:`, err);
-            newData[coin] = { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: new Date().toISOString() };
+            newData[coin] = fallbackOnChainData[coin] || { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: '2025-06-01T12:00:00Z' };
           }
         }
         setOnChainData(newData);
       } catch (err) {
         console.error('Error fetching on-chain data:', err);
-        setError('Failed to fetch on-chain data. Please try again later.');
+        setError('Failed to fetch on-chain data. Using fallback data dated 2025-06-01.');
+        const fallbackData = selectedCoins.reduce((acc, coin) => ({
+          ...acc,
+          [coin]: fallbackOnChainData[coin] || { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: '2025-06-01T12:00:00Z' },
+        }), {});
+        setOnChainData(fallbackData);
       } finally {
         setLoading(false);
       }
@@ -257,7 +262,7 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {selectedCoins.map(coin => {
-              const data = onChainData[coin] || { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: new Date().toISOString() };
+              const data = onChainData[coin] || { coin, activeWallets: 0, activeWalletsGrowth: 0, largeTransactions: 0, timestamp: '2025-06-01T12:00:00Z' };
               return (
                 <div key={coin} className="bg-gray-50 p-3 rounded-md">
                   <h3 className="font-medium text-gray-800">{coin} On-Chain Data</h3>
@@ -275,6 +280,10 @@ const OnChainInsights: React.FC<OnChainInsightsProps> = ({ selectedCoins }) => {
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600">Large Transactions:</span>
                       <span className="text-sm font-medium text-purple-600">{formatNumber(data.largeTransactions)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Timestamp:</span>
+                      <span className="text-sm text-gray-500">{new Date(data.timestamp).toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
