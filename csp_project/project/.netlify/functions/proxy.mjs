@@ -1,79 +1,87 @@
 // .netlify/functions/proxy.mjs
-export const handler = async (event, context) => {
-  const { queryStringParameters, httpMethod } = event;
-  const api = queryStringParameters?.api;
-  const endpoint = queryStringParameters?.endpoint;
-  const params = queryStringParameters?.params ? JSON.parse(decodeURIComponent(queryStringParameters.params)) : {};
+import fetch from 'node-fetch';
+
+const API_KEYS = {
+  newsapi: process.env.NEWSAPI_API_KEY,
+  openai: process.env.OPENAI_API_KEY,
+  coingecko: process.env.COINGECKO_API_KEY || '',
+  reddit: '',
+};
+
+const BASE_URLS = {
+  newsapi: 'https://newsapi.org/v2',
+  openai: 'https://api.openai.com',
+  coingecko: 'https://api.coingecko.com/api/v3',
+  reddit: 'https://www.reddit.com',
+};
+
+export default async (req, context) => {
+  const { api, endpoint, params } = req.queryStringParameters || {};
 
   if (!api || !endpoint) {
     return {
       statusCode: 400,
       body: JSON.stringify({ error: 'Missing api or endpoint parameter' }),
-      headers: { 'Content-Type': 'application/json' },
     };
   }
 
-  try {
-    let baseUrl;
-    switch (api) {
-      case 'coingecko':
-        baseUrl = 'https://api.coingecko.com/api/v3';
-        break;
-      case 'newsapi':
-        baseUrl = 'https://newsapi.org/v2';
-        break;
-      case 'openai':
-        baseUrl = 'https://api.openai.com';
-        break;
-      case 'reddit':
-        baseUrl = 'https://www.reddit.com';
-        break;
-      default:
-        baseUrl = `https://api.${api}.com`;
-    }
-
-    // Append query parameters to the URL
-    const queryString = new URLSearchParams(params).toString();
-    const url = `${baseUrl}/${endpoint}${queryString ? `?${queryString}` : ''}`;
-    const headers = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${process.env[api.toUpperCase() + '_API_KEY'] || ''}`,
+  const baseUrl = BASE_URLS[api.toLowerCase()];
+  if (!baseUrl) {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ error: 'Unsupported API' }),
     };
-    if (api === 'reddit') {
-      headers['User-Agent'] = 'CryptoSentimentPulse/1.0 (by /u/YourRedditUsername)';
+  }
+
+  const apiKey = API_KEYS[api.toLowerCase()];
+  let headers = {};
+  if (api.toLowerCase() === 'openai') {
+    headers = {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    };
+  } else if (api.toLowerCase() === 'newsapi') {
+    headers = { 'X-Api-Key': apiKey };
+  }
+
+  let url = `${baseUrl}/${endpoint}`;
+  let options = { headers };
+
+  try {
+    if (params) {
+      const decodedParams = JSON.parse(decodeURIComponent(params));
+      if (api.toLowerCase() === 'openai') {
+        url = `${baseUrl}/${endpoint}`;
+        options = {
+          ...options,
+          method: 'POST',
+          body: JSON.stringify(decodedParams),
+        };
+      } else {
+        const queryString = new URLSearchParams(decodedParams).toString();
+        url = `${url}?${queryString}`;
+      }
     }
 
-    const response = await fetch(url, {
-      method: httpMethod,
-      headers,
-      body: httpMethod === 'POST' ? JSON.stringify(params) : undefined,
-    });
+    const response = await fetch(url, options);
+    const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(`API request failed with status ${response.status}: ${await response.text()}`);
-    }
-
-    console.log('Response content-type:', response.headers.get('content-type')); // Debug log
-    let data;
-    if (api === 'reddit' || (response.headers.get('content-type')?.includes('application/xml') || response.headers.get('content-type')?.includes('text/xml'))) {
-      const { parseStringPromise } = await import('xml2js');
-      const xml = await response.text();
-      data = await parseStringPromise(xml);
-    } else {
-      data = await response.json();
+      throw new Error(`API request failed with status ${response.status}: ${JSON.stringify(data)}`);
     }
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ data }),
-      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
     };
   } catch (error) {
-    console.error('Proxy error:', error);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: error.message }),
-      headers: { 'Content-Type': 'application/json' },
     };
   }
+};
+
+export const config = {
+  path: '/api/proxy',
 };
