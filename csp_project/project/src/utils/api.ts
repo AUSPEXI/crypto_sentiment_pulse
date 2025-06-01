@@ -46,6 +46,7 @@ export const fetchNews = async (asset: string): Promise<NewsData> => {
         title: article.title || 'No title',
         description: article.description || 'No description',
         url: article.url || '#',
+        publishedAt: article.publishedAt || '', // Include publishedAt
       })),
     };
   } catch (error) {
@@ -58,7 +59,7 @@ export const fetchOnChainData = async (asset: string): Promise<OnChainData> => {
   try {
     const response = await fetchEvents('coingecko', 'simple/price', {
       ids: asset.toLowerCase(),
-      vs_currencies: 'usd', // Ensure this is passed correctly
+      vs_currencies: 'usd',
     });
     const data = response.data;
     return {
