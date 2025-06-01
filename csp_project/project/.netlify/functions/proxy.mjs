@@ -31,7 +31,7 @@ const BASE_URLS = {
 export default async (req, context) => {
   const { api, endpoint, params } = req.queryStringParameters || {};
 
-  if (!api || !endpoint && api.toLowerCase() !== 'local-sentiment') {
+  if (!api || (!endpoint && api.toLowerCase() !== 'local-sentiment')) {
     return {
       statusCode: 400,
       body: JSON.stringify({ error: 'Missing api or endpoint parameter' }),
